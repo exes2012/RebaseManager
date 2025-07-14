@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>RebaseProjectWithTemplate</Name>
+    <Assembly>RebaseProjectWithTemplate\RebaseProjectWithTemplate.dll</Assembly>
+    <AddInId>604B1052-F742-4951-8378-82BD1442FB12</AddInId>
+    <FullClassName>RebaseProjectWithTemplate.App.App</FullClassName>
+    <VendorId>ADSK</VendorId>
+    <VendorDescription>Autodesk, www.autodesk.com</VendorDescription>
+  </AddIn>
+</RevitAddIns>
