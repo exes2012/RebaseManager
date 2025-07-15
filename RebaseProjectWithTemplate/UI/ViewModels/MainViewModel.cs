@@ -1,14 +1,16 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using RebaseProjectWithTemplate.Core.Services;
+using RebaseProjectWithTemplate.Commands.Rebase.Core.Services;
 using RebaseProjectWithTemplate.UI.ViewModels.Base;
 using RebaseProjectWithTemplate.UI.ViewModels.Extensions;
 
-using RebaseProjectWithTemplate.Infrastructure.Grok;
-using RebaseProjectWithTemplate.Infrastructure.Revit;
+using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Grok;
+using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Revit;
+using RebaseProjectWithTemplate.Infrastructure;
 
 namespace RebaseProjectWithTemplate.UI.ViewModels
 {
@@ -118,6 +120,10 @@ namespace RebaseProjectWithTemplate.UI.ViewModels
 
         private async void ExecuteRebase(object parameter)
         {
+            LogHelper.Information("=== Starting Project Rebase ===");
+            LogHelper.Information($"Source Document: {SelectedSourceDocument?.PathName ?? "Unknown"}");
+            LogHelper.Information($"Template Document: {SelectedTemplateDocument?.PathName ?? "Unknown"}");
+
             IsProgressVisible = true;
             IsRebaseButtonEnabled = false;
             ProgressText = "Starting view template rebase...";
@@ -127,6 +133,10 @@ namespace RebaseProjectWithTemplate.UI.ViewModels
                 var progress = new Progress<string>(message =>
                 {
                     ProgressText = message;
+                    LogHelper.Information($"Progress: {message}");
+
+                    // Force UI update
+                    Application.Current.Dispatcher.Invoke(() => { }, DispatcherPriority.Background);
                 });
 
                 using (var grokService = new GrokApiService())
@@ -143,6 +153,7 @@ namespace RebaseProjectWithTemplate.UI.ViewModels
                     if (result.Success)
                     {
                         ProgressText = "Rebase completed successfully!";
+                        LogHelper.Information("=== Project Rebase Completed Successfully ===");
 
                         MessageBox.Show(
                             "Project rebase completed successfully!",
@@ -153,6 +164,8 @@ namespace RebaseProjectWithTemplate.UI.ViewModels
                     else
                     {
                         ProgressText = $"Rebase failed: {result.ErrorMessage}";
+                        LogHelper.Error($"Project Rebase Failed: {result.ErrorMessage}");
+
                         MessageBox.Show(
                             $"View template rebase failed:\n\n{result.ErrorMessage}",
                             "Rebase Error",
@@ -164,6 +177,9 @@ namespace RebaseProjectWithTemplate.UI.ViewModels
             catch (Exception ex)
             {
                 ProgressText = $"Error: {ex.Message}";
+                LogHelper.Error($"Unexpected error during rebase: {ex.Message}");
+                LogHelper.Error($"Stack trace: {ex.StackTrace}");
+
                 MessageBox.Show(
                     $"An error occurred during rebase:\n\n{ex.Message}",
                     "Error",
@@ -173,6 +189,7 @@ namespace RebaseProjectWithTemplate.UI.ViewModels
             finally
             {
                 IsRebaseButtonEnabled = true;
+                LogHelper.Information("=== Project Rebase Session Ended ===");
                 // Keep progress visible to show final status
             }
         }

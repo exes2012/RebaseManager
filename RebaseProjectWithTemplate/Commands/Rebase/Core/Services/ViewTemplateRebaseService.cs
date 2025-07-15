@@ -1,9 +1,11 @@
 using Autodesk.Revit.DB;
-using RebaseProjectWithTemplate.Core.Prompts;
-using RebaseProjectWithTemplate.Infrastructure.Grok;
-using RebaseProjectWithTemplate.Core.Prompts;
+using RebaseProjectWithTemplate.Commands.Rebase.Core.Prompts;
+using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Grok;
 using RebaseProjectWithTemplate.Commands.Rebase.Models;
 using RebaseProjectWithTemplate.Commands.Rebase.Core.Abstractions;
+using RebaseProjectWithTemplate.Infrastructure;
+using System.Windows;
+using System.Windows.Threading;
 
 namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
 {
@@ -32,6 +34,19 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
 
         #endregion
 
+        #region Helper Methods
+
+        private static void UpdateProgress(IProgress<string> progress, string message)
+        {
+            progress?.Report(message);
+            LogHelper.Information($"ViewTemplateRebaseService: {message}");
+
+            // Force UI update
+            Application.Current?.Dispatcher?.Invoke(() => { }, DispatcherPriority.Background);
+        }
+
+        #endregion
+
         #region Public Methods
 
         public async Task<ViewTemplateRebaseResult> RebaseViewTemplatesAsync(
@@ -43,10 +58,12 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
 
             try
             {
-                progress?.Report("Collecting source view plans with templates...");
+                LogHelper.Information("Starting ViewTemplateRebaseService.RebaseViewTemplatesAsync");
+                UpdateProgress(progress, "Collecting source view plans with templates...");
 
                 var sourceViewsWithTemplates = CollectViewPlansWithTemplates(documentToUpdate);
                 result.SourceViewsProcessed = sourceViewsWithTemplates.Count;
+                LogHelper.Information($"Found {sourceViewsWithTemplates.Count} source views with templates");
 
                 if (sourceViewsWithTemplates.Count == 0)
                 {
@@ -55,13 +72,14 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
 
                 StoreOriginalTemplateNames(documentToUpdate, sourceViewsWithTemplates);
 
-                progress?.Report($"Found {sourceViewsWithTemplates.Count} views with templates");
+                UpdateProgress(progress, $"Found {sourceViewsWithTemplates.Count} views with templates");
 
                 var sourceTemplates = CollectViewTemplateNames(documentToUpdate);
                 var targetTemplates = CollectViewTemplateNames(standardSourceDocument);
+                LogHelper.Information($"Collected templates - Source: {sourceTemplates.Count}, Target: {targetTemplates.Count}");
 
-                progress?.Report($"Source templates: {sourceTemplates.Count}, Target templates: {targetTemplates.Count}");
-                progress?.Report("Mapping view templates using AI...");
+                UpdateProgress(progress, $"Source templates: {sourceTemplates.Count}, Target templates: {targetTemplates.Count}");
+                UpdateProgress(progress, "Mapping view templates using AI...");
 
                 var mappingStrategy = new ViewTemplateMappingPromptStrategy();
                 var promptData = new ViewTemplateMappingPromptData
@@ -70,55 +88,71 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
                     TargetTemplates = targetTemplates
                 };
 
+                LogHelper.Information("Calling Grok API for template mapping");
                 var mappingResponse = await _grokService.ExecuteChatCompletionAsync<ViewTemplateMappingResponse>(mappingStrategy, promptData);
                 result.MappingResponse = mappingResponse;
+                LogHelper.Information($"AI mapping completed - Mapped: {mappingResponse.Mappings?.Count ?? 0}, Unmapped: {mappingResponse.Unmapped?.Count ?? 0}");
 
-                progress?.Report("Starting view template rebase process...");
+                UpdateProgress(progress, "Starting view template rebase process...");
 
                 using (var transaction = new Transaction(documentToUpdate, "Rebase View Templates"))
                 {
+                    CommonFailuresPreprocessor.SetFailuresPreprocessor(transaction);
                     transaction.Start();
 
                     try
                     {
-                        progress?.Report("Analyzing view templates for deletion/replacement...");
+                        LogHelper.Information("Starting transaction operations");
+
+                        UpdateProgress(progress, "Analyzing view templates for deletion/replacement...");
                         MarkViewTemplatesForProcessing(documentToUpdate, mappingResponse);
 
-                        progress?.Report("Removing view templates from source views...");
+                        UpdateProgress(progress, "Removing view templates from source views...");
                         RemoveViewTemplatesFromViews(sourceViewsWithTemplates);
+                        LogHelper.Information($"Removed view templates from {sourceViewsWithTemplates.Count} views");
 
-                        progress?.Report("Renaming existing filters...");
+                        UpdateProgress(progress, "Renaming existing filters...");
                         RenameFiltersWithPrefix(documentToUpdate);
 
-                        progress?.Report("Deleting unmapped view templates...");
+                        UpdateProgress(progress, "Deleting unmapped view templates...");
                         result.TemplatesDeleted = DeleteUnmappedViewTemplates(documentToUpdate, mappingResponse);
+                        LogHelper.Information($"Deleted {result.TemplatesDeleted} unmapped view templates");
 
-                        progress?.Report("Copying view templates from template...");
+                        UpdateProgress(progress, "Copying view templates from template...");
                         result.TemplatesCopied = CopyViewTemplatesFromTemplate(documentToUpdate, standardSourceDocument, targetTemplates).Count;
+                        LogHelper.Information($"Copied {result.TemplatesCopied} view templates from template");
 
-                        progress?.Report("Applying mapped view templates...");
+                        UpdateProgress(progress, "Applying mapped view templates...");
                         ApplyMappedViewTemplates(documentToUpdate, sourceViewsWithTemplates, mappingResponse.Mappings);
                         result.ViewsMapped = mappingResponse.Mappings.Count;
+                        LogHelper.Information($"Applied view templates to {result.ViewsMapped} views");
 
-                        progress?.Report("Setting UNMATCHED for unmapped views...");
+                        UpdateProgress(progress, "Setting UNMATCHED for unmapped views...");
                         SetUnmatchedViewSize(documentToUpdate, sourceViewsWithTemplates, mappingResponse.Unmapped);
                         result.ViewsUnmatched = mappingResponse.Unmapped.Count;
+                        LogHelper.Information($"Set UNMATCHED for {result.ViewsUnmatched} unmapped views");
 
+                        LogHelper.Information("Committing transaction");
                         transaction.Commit();
                         result.Success = true;
-                        progress?.Report("View template rebase completed successfully!");
+                        UpdateProgress(progress, "View template rebase completed successfully!");
+                        LogHelper.Information("ViewTemplateRebaseService.RebaseViewTemplatesAsync completed successfully");
                     }
                     catch (Exception ex)
                     {
+                        LogHelper.Error($"Transaction failed in ViewTemplateRebaseService: {ex.Message}");
+                        LogHelper.Error($"Stack trace: {ex.StackTrace}");
                         throw new Exception($"Transaction failed: {ex.Message}", ex);
                     }
                 }
             }
             catch (Exception ex)
             {
+                LogHelper.Error($"ViewTemplateRebaseService.RebaseViewTemplatesAsync failed: {ex.Message}");
+                LogHelper.Error($"Stack trace: {ex.StackTrace}");
                 result.Success = false;
                 result.ErrorMessage = ex.Message;
-                progress?.Report($"Error: {ex.Message}");
+                UpdateProgress(progress, $"Error: {ex.Message}");
             }
 
             return result;
