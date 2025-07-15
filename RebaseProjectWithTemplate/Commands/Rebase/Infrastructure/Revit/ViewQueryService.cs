@@ -1,6 +1,6 @@
 using Autodesk.Revit.DB;
 
-namespace RebaseProjectWithTemplate.Infrastructure.Revit;
+namespace RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Revit;
 
 public static class ViewQueryService
 {

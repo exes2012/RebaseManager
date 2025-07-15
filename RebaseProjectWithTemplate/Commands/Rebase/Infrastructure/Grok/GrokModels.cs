@@ -1,4 +1,4 @@
-namespace RebaseProjectWithTemplate.Infrastructure.Grok;
+namespace RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Grok;
 
 public class GrokRequest
 {

@@ -1,7 +1,7 @@
 using System.IO;
 using System.Reflection;
 
-namespace RebaseProjectWithTemplate.Infrastructure.IO;
+namespace RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.IO;
 
 public static class PromptLoaderService
 {

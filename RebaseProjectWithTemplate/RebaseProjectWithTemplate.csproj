@@ -78,8 +78,8 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <None Remove="Prompts\ViewTemplateMapping_System.txt" />
-	  <None Remove="Prompts\ViewTemplateMapping_User.txt" />
+	  <None Remove="Commands\Rebase\Prompts\ViewTemplateMapping_System.txt" />
+	  <None Remove="Commands\Rebase\Prompts\ViewTemplateMapping_User.txt" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -174,10 +174,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <EmbeddedResource Include="Prompts\ViewTemplateMapping_System.txt">
+	  <EmbeddedResource Include="Commands\Rebase\Prompts\ViewTemplateMapping_System.txt">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </EmbeddedResource>
-	  <EmbeddedResource Include="Prompts\ViewTemplateMapping_User.txt">
+	  <EmbeddedResource Include="Commands\Rebase\Prompts\ViewTemplateMapping_User.txt">
 	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </EmbeddedResource>
 	</ItemGroup>

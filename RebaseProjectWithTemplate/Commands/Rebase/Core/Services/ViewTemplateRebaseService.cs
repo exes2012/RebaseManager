@@ -1,11 +1,11 @@
 using Autodesk.Revit.DB;
-using RebaseProjectWithTemplate.Core.Abstractions;
 using RebaseProjectWithTemplate.Core.Prompts;
 using RebaseProjectWithTemplate.Infrastructure.Grok;
-using RebaseProjectWithTemplate.Models;
 using RebaseProjectWithTemplate.Core.Prompts;
+using RebaseProjectWithTemplate.Commands.Rebase.Models;
+using RebaseProjectWithTemplate.Commands.Rebase.Core.Abstractions;
 
-namespace RebaseProjectWithTemplate.Core.Services
+namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
 {
     public class ViewTemplateRebaseService
     {
@@ -124,7 +124,7 @@ namespace RebaseProjectWithTemplate.Core.Services
             return result;
         }
 
-        
+
 
         #endregion
 

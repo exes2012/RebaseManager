@@ -2,14 +2,12 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using RebaseProjectWithTemplate.Core.Abstractions;
-using RebaseProjectWithTemplate.Infrastructure.Configuration;
+using RebaseProjectWithTemplate.Commands.Rebase.Core.Abstractions;
+using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Configuration;
 
-using RebaseProjectWithTemplate.Core.Abstractions;
+namespace RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Grok;
 
-namespace RebaseProjectWithTemplate.Infrastructure.Grok;
-
-    public class GrokApiService : IGrokApiService, IDisposable
+public class GrokApiService : IGrokApiService, IDisposable
 {
     private readonly string _baseUrl;
     private readonly HttpClient _httpClient;

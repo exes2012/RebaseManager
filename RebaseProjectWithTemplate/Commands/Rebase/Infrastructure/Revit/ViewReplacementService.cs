@@ -1,9 +1,8 @@
 using System.Threading;
 using Autodesk.Revit.DB;
-using RebaseProjectWithTemplate.Infrastructure.Revit;
 using View = Autodesk.Revit.DB.View;
 
-namespace RebaseProjectWithTemplate.Infrastructure.Revit;
+namespace RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Revit;
 
 public class ViewReplacementService
 {

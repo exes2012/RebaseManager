@@ -1,34 +1,31 @@
-using Autodesk.Revit.UI;
-using System;
 using System.Reflection;
+using Autodesk.Revit.UI;
 
-using RebaseProjectWithTemplate.UI.Commands;
+namespace RebaseProjectWithTemplate;
 
-namespace RebaseProjectWithTemplate
+public class App : IExternalApplication
 {
-    public class App : IExternalApplication
+    public Result OnStartup(UIControlledApplication application)
     {
-        public Result OnStartup(UIControlledApplication application)
-        {
-            string assemblyName = Assembly.GetExecutingAssembly().Location;
-            string tabName = "Revit Tools";
-            application.CreateRibbonTab(tabName);
+        var assemblyName = Assembly.GetExecutingAssembly().Location;
+        var tabName = "Revit Tools";
+        application.CreateRibbonTab(tabName);
 
-            RibbonPanel panel = application.CreateRibbonPanel(tabName, "Rebase Tool");
+        var panel = application.CreateRibbonPanel(tabName, "Rebase Tool");
 
-            PushButtonData buttonData = new PushButtonData(
-                "RebaseProject",
-                "Rebase Project",
-                assemblyName,
-                "RebaseProjectWithTemplate.Commands.Command");
+        var buttonData = new PushButtonData(
+            "RebaseProject",
+            "Rebase Project",
+            assemblyName,
+            "RebaseProjectWithTemplate.Commands.Rebase.RebaseCommand");
 
-            panel.AddItem(buttonData);
+        panel.AddItem(buttonData);
 
-            return Result.Succeeded;
-        }
-        public Result OnShutdown(UIControlledApplication application)
-        {
-            return Result.Succeeded;
-        }
+        return Result.Succeeded;
+    }
+
+    public Result OnShutdown(UIControlledApplication application)
+    {
+        return Result.Succeeded;
     }
 }

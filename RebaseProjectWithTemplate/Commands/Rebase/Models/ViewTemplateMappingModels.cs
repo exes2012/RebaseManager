@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace RebaseProjectWithTemplate.Models
+namespace RebaseProjectWithTemplate.Commands.Rebase.Models
 {
     public class ViewTemplateMappingResponse
     {

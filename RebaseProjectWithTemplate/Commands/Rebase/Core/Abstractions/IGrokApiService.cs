@@ -1,7 +1,6 @@
 using System.Threading.Tasks;
-using RebaseProjectWithTemplate.Core.Abstractions;
 
-namespace RebaseProjectWithTemplate.Core.Abstractions
+namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Abstractions
 {
     public interface IGrokApiService
     {

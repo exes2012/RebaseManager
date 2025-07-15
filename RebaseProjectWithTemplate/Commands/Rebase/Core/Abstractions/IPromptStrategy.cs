@@ -1,4 +1,4 @@
-namespace RebaseProjectWithTemplate.Core.Abstractions
+namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Abstractions
 {
     public abstract class PromptData { }
 

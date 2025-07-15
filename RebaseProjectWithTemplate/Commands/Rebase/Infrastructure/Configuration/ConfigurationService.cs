@@ -2,7 +2,7 @@ using System.IO;
 using System.Reflection;
 using System.Text.Json;
 
-namespace RebaseProjectWithTemplate.Infrastructure.Configuration;
+namespace RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Configuration;
 
 public static class ConfigurationService
 {

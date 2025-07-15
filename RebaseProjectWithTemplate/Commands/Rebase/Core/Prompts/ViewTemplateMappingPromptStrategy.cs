@@ -1,8 +1,8 @@
 using System.Text.Json;
-using RebaseProjectWithTemplate.Core.Abstractions;
-using RebaseProjectWithTemplate.Infrastructure.IO;
+using RebaseProjectWithTemplate.Commands.Rebase.Core.Abstractions;
+using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.IO;
 
-namespace RebaseProjectWithTemplate.Core.Prompts;
+namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Prompts;
 
 public class ViewTemplateMappingPromptData : PromptData
 {

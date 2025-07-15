@@ -1,7 +1,7 @@
 using Autodesk.Revit.DB;
-using RebaseProjectWithTemplate.Infrastructure.Revit;
+using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Revit;
 
-namespace RebaseProjectWithTemplate.Core.Services;
+namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services;
 
 public class ProjectRebaseService
 {
