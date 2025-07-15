@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace RebaseProjectWithTemplate.ViewModel.Base
+namespace RebaseProjectWithTemplate.UI.ViewModels.Base
 {
     public class ViewModelBase : INotifyPropertyChanged
     {

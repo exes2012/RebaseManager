@@ -1,10 +1,10 @@
-using RebaseProjectWithTemplate.ViewModel;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using RebaseProjectWithTemplate.UI.ViewModels;
 
-namespace RebaseProjectWithTemplate.View
+namespace RebaseProjectWithTemplate.UI.Views
 {
     public partial class MainView : Window
     {

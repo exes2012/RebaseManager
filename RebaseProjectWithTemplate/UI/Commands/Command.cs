@@ -1,10 +1,10 @@
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using RebaseProjectWithTemplate.View;
-using RebaseProjectWithTemplate.ViewModel;
+using RebaseProjectWithTemplate.UI.Views;
+using RebaseProjectWithTemplate.UI.ViewModels;
 
-namespace RebaseProjectWithTemplate.Commands
+namespace RebaseProjectWithTemplate.UI.Commands
 {
     [Transaction(TransactionMode.Manual)]
     public class Command : IExternalCommand

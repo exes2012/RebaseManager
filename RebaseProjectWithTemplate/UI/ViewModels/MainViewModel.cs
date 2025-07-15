@@ -1,15 +1,16 @@
+using System.Collections.ObjectModel;
+using System.Windows;
+using System.Windows.Input;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using RebaseProjectWithTemplate.ViewModel.Base;
-using RebaseProjectWithTemplate.Services;
-using System;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Windows.Input;
-using System.Windows;
+using RebaseProjectWithTemplate.Core.Services;
+using RebaseProjectWithTemplate.UI.ViewModels.Base;
+using RebaseProjectWithTemplate.UI.ViewModels.Extensions;
 
-namespace RebaseProjectWithTemplate.ViewModel
+using RebaseProjectWithTemplate.Infrastructure.Grok;
+using RebaseProjectWithTemplate.Infrastructure.Revit;
+
+namespace RebaseProjectWithTemplate.UI.ViewModels
 {
     public class MainViewModel : ViewModelBase
     {
@@ -128,8 +129,12 @@ namespace RebaseProjectWithTemplate.ViewModel
                     ProgressText = message;
                 });
 
-                using (var rebaseService = new ProjectRebaseService())
+                using (var grokService = new GrokApiService())
                 {
+                    var viewTemplateRebaseService = new ViewTemplateRebaseService(grokService);
+                    var viewReplacementService = new ViewReplacementService();
+                    var rebaseService = new ProjectRebaseService(viewTemplateRebaseService, viewReplacementService);
+
                     var result = await rebaseService.ExecuteFullRebase(
                         SelectedSourceDocument,
                         SelectedTemplateDocument,
@@ -169,26 +174,6 @@ namespace RebaseProjectWithTemplate.ViewModel
             {
                 IsRebaseButtonEnabled = true;
                 // Keep progress visible to show final status
-            }
-        }
-    }
-
-    public static class DocumentExtensions
-    {
-        public static bool HasModelView(this Document doc)
-        {
-            FilteredElementCollector collector = new FilteredElementCollector(doc);
-            return collector.OfClass(typeof(View3D)).Any();
-        }
-    }
-    
-    public static class RelayCommandExtensions
-    {
-        public static void RaiseCanExecuteChanged(this ICommand command)
-        {
-            if (command is RelayCommand relayCommand)
-            {
-                CommandManager.InvalidateRequerySuggested();
             }
         }
     }

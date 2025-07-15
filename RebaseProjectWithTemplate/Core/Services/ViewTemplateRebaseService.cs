@@ -1,40 +1,51 @@
 using Autodesk.Revit.DB;
-using Autodesk.Revit.UI;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using RebaseProjectWithTemplate.Core.Abstractions;
+using RebaseProjectWithTemplate.Core.Prompts;
+using RebaseProjectWithTemplate.Infrastructure.Grok;
 using RebaseProjectWithTemplate.Models;
+using RebaseProjectWithTemplate.Core.Prompts;
 
-namespace RebaseProjectWithTemplate.Services
+namespace RebaseProjectWithTemplate.Core.Services
 {
-    public class ViewTemplateRebaseService : IDisposable
+    public class ViewTemplateRebaseService
     {
-        private readonly GrokApiService _grokService;
+        #region Constants
+
         private const string UnmatchedViewSizeValue = "UNMATCHED";
         private const string FilterPrefix = "Z-OLD-";
-        private Dictionary<ElementId, string> _originalTemplateNames = new Dictionary<ElementId, string>();
 
+        #endregion
 
+        #region Fields
 
-        public ViewTemplateRebaseService()
+        private readonly IGrokApiService _grokService;
+        private readonly Dictionary<ElementId, string> _originalTemplateNames = new Dictionary<ElementId, string>();
+
+        #endregion
+
+        #region Constructor
+
+        public ViewTemplateRebaseService(IGrokApiService grokService)
         {
-            _grokService = new GrokApiService();
+            _grokService = grokService;
         }
 
+        #endregion
+
+        #region Public Methods
+
         public async Task<ViewTemplateRebaseResult> RebaseViewTemplatesAsync(
-            Document sourceDocument,
-            Document templateDocument,
+            Document documentToUpdate,
+            Document standardSourceDocument,
             IProgress<string> progress = null)
         {
             var result = new ViewTemplateRebaseResult();
-            
+
             try
             {
                 progress?.Report("Collecting source view plans with templates...");
 
-                // Step 1: Collect all ViewPlans with assigned view templates
-                var sourceViewsWithTemplates = CollectViewPlansWithTemplates(sourceDocument);
+                var sourceViewsWithTemplates = CollectViewPlansWithTemplates(documentToUpdate);
                 result.SourceViewsProcessed = sourceViewsWithTemplates.Count;
 
                 if (sourceViewsWithTemplates.Count == 0)
@@ -42,60 +53,55 @@ namespace RebaseProjectWithTemplate.Services
                     throw new Exception("No ViewPlans found with view templates and numeric View Size parameter.");
                 }
 
-                // Store original template names before removing them
-                StoreOriginalTemplateNames(sourceDocument, sourceViewsWithTemplates);
+                StoreOriginalTemplateNames(documentToUpdate, sourceViewsWithTemplates);
 
                 progress?.Report($"Found {sourceViewsWithTemplates.Count} views with templates");
 
-                // Step 2: Collect view templates from both documents
-                var sourceTemplates = CollectViewTemplateNames(sourceDocument);
-                var targetTemplates = CollectViewTemplateNames(templateDocument);
+                var sourceTemplates = CollectViewTemplateNames(documentToUpdate);
+                var targetTemplates = CollectViewTemplateNames(standardSourceDocument);
 
                 progress?.Report($"Source templates: {sourceTemplates.Count}, Target templates: {targetTemplates.Count}");
                 progress?.Report("Mapping view templates using AI...");
 
-                // Step 3: Map view templates using Grok API
-                var mappingResponse = await _grokService.MapViewTemplatesAsync(sourceTemplates, targetTemplates);
+                var mappingStrategy = new ViewTemplateMappingPromptStrategy();
+                var promptData = new ViewTemplateMappingPromptData
+                {
+                    SourceTemplates = sourceTemplates,
+                    TargetTemplates = targetTemplates
+                };
+
+                var mappingResponse = await _grokService.ExecuteChatCompletionAsync<ViewTemplateMappingResponse>(mappingStrategy, promptData);
                 result.MappingResponse = mappingResponse;
-                
+
                 progress?.Report("Starting view template rebase process...");
-                
-                using (var transaction = new Transaction(sourceDocument, "Rebase View Templates"))
+
+                using (var transaction = new Transaction(documentToUpdate, "Rebase View Templates"))
                 {
                     transaction.Start();
 
                     try
                     {
-                        // Step 4a: Mark unmapped view templates for deletion and mapped for replacement
                         progress?.Report("Analyzing view templates for deletion/replacement...");
-                        MarkViewTemplatesForProcessing(sourceDocument, mappingResponse);
+                        MarkViewTemplatesForProcessing(documentToUpdate, mappingResponse);
 
-                        // Step 4b: Remove view templates from source views
                         progress?.Report("Removing view templates from source views...");
                         RemoveViewTemplatesFromViews(sourceViewsWithTemplates);
 
-                        // Step 4c: Rename filters with Z-OLD prefix
                         progress?.Report("Renaming existing filters...");
-                        RenameFiltersWithPrefix(sourceDocument);
+                        RenameFiltersWithPrefix(documentToUpdate);
 
-                        // Step 4d: Delete unmapped view templates
                         progress?.Report("Deleting unmapped view templates...");
-                        var deletedTemplatesCount = DeleteUnmappedViewTemplates(sourceDocument, mappingResponse);
-                        result.TemplatesDeleted = deletedTemplatesCount;
+                        result.TemplatesDeleted = DeleteUnmappedViewTemplates(documentToUpdate, mappingResponse);
 
-                        // Step 4e: Copy view templates from template document
                         progress?.Report("Copying view templates from template...");
-                        var copiedTemplates = CopyViewTemplatesFromTemplate(sourceDocument, templateDocument, targetTemplates);
-                        result.TemplatesCopied = copiedTemplates.Count;
+                        result.TemplatesCopied = CopyViewTemplatesFromTemplate(documentToUpdate, standardSourceDocument, targetTemplates).Count;
 
-                        // Step 4f: Apply mapped view templates
                         progress?.Report("Applying mapped view templates...");
-                        ApplyMappedViewTemplates(sourceDocument, sourceViewsWithTemplates, mappingResponse.Mappings);
+                        ApplyMappedViewTemplates(documentToUpdate, sourceViewsWithTemplates, mappingResponse.Mappings);
                         result.ViewsMapped = mappingResponse.Mappings.Count;
 
-                        // Step 4g: Set UNMATCHED for unmapped views
                         progress?.Report("Setting UNMATCHED for unmapped views...");
-                        SetUnmatchedViewSize(sourceDocument, sourceViewsWithTemplates, mappingResponse.Unmapped);
+                        SetUnmatchedViewSize(documentToUpdate, sourceViewsWithTemplates, mappingResponse.Unmapped);
                         result.ViewsUnmatched = mappingResponse.Unmapped.Count;
 
                         transaction.Commit();
@@ -104,7 +110,6 @@ namespace RebaseProjectWithTemplate.Services
                     }
                     catch (Exception ex)
                     {
-                        transaction.RollBack();
                         throw new Exception($"Transaction failed: {ex.Message}", ex);
                     }
                 }
@@ -115,23 +120,29 @@ namespace RebaseProjectWithTemplate.Services
                 result.ErrorMessage = ex.Message;
                 progress?.Report($"Error: {ex.Message}");
             }
-            
+
             return result;
         }
 
-        private List<ViewPlan> CollectViewPlansWithTemplates(Document document)
-        {
-            var viewSizeParam = GetViewSizeParameter(document);
+        
 
-            var collector = new FilteredElementCollector(document)
+        #endregion
+
+        #region Private Methods
+
+        #region Data Collection
+
+        private List<ViewPlan> CollectViewPlansWithTemplates(Document documentToUpdate)
+        {
+            var viewSizeParam = GetViewSizeParameter(documentToUpdate);
+
+            return new FilteredElementCollector(documentToUpdate)
                 .OfClass(typeof(ViewPlan))
                 .Cast<ViewPlan>()
                 .Where(v => v.ViewTemplateId != ElementId.InvalidElementId &&
                            !v.IsTemplate &&
                            HasNumericViewSize(v, viewSizeParam))
                 .ToList();
-
-            return collector;
         }
 
         private bool HasNumericViewSize(ViewPlan view, Definition viewSizeParam)
@@ -144,21 +155,47 @@ namespace RebaseProjectWithTemplate.Services
             var viewSizeValue = param.AsString();
             if (string.IsNullOrWhiteSpace(viewSizeValue)) return false;
 
-            // Check if the value contains any digits
             return viewSizeValue.Any(char.IsDigit);
         }
 
         private List<string> CollectViewTemplateNames(Document document)
         {
-            var templates = new FilteredElementCollector(document)
-                .OfClass(typeof(Autodesk.Revit.DB.View))
-                .Cast<Autodesk.Revit.DB.View>()
+            return new FilteredElementCollector(document)
+                .OfClass(typeof(View))
+                .Cast<View>()
                 .Where(v => v.IsTemplate)
                 .Select(v => v.Name)
                 .ToList();
-
-            return templates;
         }
+
+        private void StoreOriginalTemplateNames(Document documentToUpdate, List<ViewPlan> views)
+        {
+            var templateLookup = new FilteredElementCollector(documentToUpdate)
+                .OfClass(typeof(View))
+                .Cast<View>()
+                .Where(v => v.IsTemplate)
+                .ToDictionary(v => v.Id, v => v.Name);
+
+            foreach (var view in views)
+            {
+                if (view.ViewTemplateId != ElementId.InvalidElementId &&
+                    templateLookup.ContainsKey(view.ViewTemplateId))
+                {
+                    _originalTemplateNames[view.Id] = templateLookup[view.ViewTemplateId];
+                }
+            }
+        }
+
+        private string GetOriginalTemplateName(ViewPlan view)
+        {
+            return _originalTemplateNames.ContainsKey(view.Id)
+                ? _originalTemplateNames[view.Id]
+                : string.Empty;
+        }
+
+        #endregion
+
+        #region Revit Operations
 
         private void RemoveViewTemplatesFromViews(List<ViewPlan> views)
         {
@@ -168,9 +205,9 @@ namespace RebaseProjectWithTemplate.Services
             }
         }
 
-        private void RenameFiltersWithPrefix(Document document)
+        private void RenameFiltersWithPrefix(Document documentToUpdate)
         {
-            var filters = new FilteredElementCollector(document)
+            var filters = new FilteredElementCollector(documentToUpdate)
                 .OfClass(typeof(ParameterFilterElement))
                 .Cast<ParameterFilterElement>()
                 .ToList();
@@ -184,11 +221,11 @@ namespace RebaseProjectWithTemplate.Services
             }
         }
 
-        private List<Autodesk.Revit.DB.View> CopyViewTemplatesFromTemplate(Document sourceDoc, Document templateDoc, List<string> templateNames)
+        private List<View> CopyViewTemplatesFromTemplate(Document documentToUpdate, Document standardSourceDocument, List<string> templateNames)
         {
-            var templateElements = new FilteredElementCollector(templateDoc)
-                .OfClass(typeof(Autodesk.Revit.DB.View))
-                .Cast<Autodesk.Revit.DB.View>()
+            var templateElements = new FilteredElementCollector(standardSourceDocument)
+                .OfClass(typeof(View))
+                .Cast<View>()
                 .Where(v => v.IsTemplate && templateNames.Contains(v.Name))
                 .Select(v => v.Id)
                 .ToList();
@@ -196,25 +233,25 @@ namespace RebaseProjectWithTemplate.Services
             if (templateElements.Any())
             {
                 var copiedIds = ElementTransformUtils.CopyElements(
-                    templateDoc,
+                    standardSourceDocument,
                     templateElements,
-                    sourceDoc,
+                    documentToUpdate,
                     Transform.Identity,
                     new CopyPasteOptions());
 
-                return copiedIds.Select(id => sourceDoc.GetElement(id) as Autodesk.Revit.DB.View)
+                return copiedIds.Select(id => documentToUpdate.GetElement(id) as View)
                               .Where(v => v != null)
                               .ToList();
             }
 
-            return new List<Autodesk.Revit.DB.View>();
+            return new List<View>();
         }
 
-        private void ApplyMappedViewTemplates(Document document, List<ViewPlan> views, List<ViewTemplateMapping> mappings)
+        private void ApplyMappedViewTemplates(Document documentToUpdate, List<ViewPlan> views, List<ViewTemplateMapping> mappings)
         {
-            var templateLookup = new FilteredElementCollector(document)
-                .OfClass(typeof(Autodesk.Revit.DB.View))
-                .Cast<Autodesk.Revit.DB.View>()
+            var templateLookup = new FilteredElementCollector(documentToUpdate)
+                .OfClass(typeof(View))
+                .Cast<View>()
                 .Where(v => v.IsTemplate)
                 .ToDictionary(v => v.Name, v => v.Id);
 
@@ -222,7 +259,7 @@ namespace RebaseProjectWithTemplate.Services
             {
                 var originalTemplateName = GetOriginalTemplateName(view);
                 var mapping = mappings.FirstOrDefault(m => m.SourceTemplate == originalTemplateName);
-                
+
                 if (mapping != null && templateLookup.ContainsKey(mapping.TargetTemplate))
                 {
                     view.ViewTemplateId = templateLookup[mapping.TargetTemplate];
@@ -230,9 +267,9 @@ namespace RebaseProjectWithTemplate.Services
             }
         }
 
-        private void SetUnmatchedViewSize(Document document, List<ViewPlan> views, List<UnmappedViewTemplate> unmapped)
+        private void SetUnmatchedViewSize(Document documentToUpdate, List<ViewPlan> views, List<UnmappedViewTemplate> unmapped)
         {
-            var viewSizeParam = GetViewSizeParameter(document);
+            var viewSizeParam = GetViewSizeParameter(documentToUpdate);
             if (viewSizeParam == null) return;
 
             var unmappedTemplateNames = unmapped.Select(u => u.SourceTemplate).ToHashSet();
@@ -251,10 +288,9 @@ namespace RebaseProjectWithTemplate.Services
             }
         }
 
-        private Definition GetViewSizeParameter(Document document)
+        private Definition GetViewSizeParameter(Document documentToUpdate)
         {
-            // Look for View Size parameter - this might need adjustment based on actual parameter name
-            var collector = new FilteredElementCollector(document)
+            var collector = new FilteredElementCollector(documentToUpdate)
                 .OfClass(typeof(ParameterElement));
 
             foreach (ParameterElement param in collector)
@@ -268,49 +304,22 @@ namespace RebaseProjectWithTemplate.Services
             return null;
         }
 
-        private void MarkViewTemplatesForProcessing(Document document, ViewTemplateMappingResponse mappingResponse)
+        private void MarkViewTemplatesForProcessing(Document documentToUpdate, ViewTemplateMappingResponse mappingResponse)
         {
-            // Get all view templates in the source document
-            var allTemplates = new FilteredElementCollector(document)
-                .OfClass(typeof(Autodesk.Revit.DB.View))
-                .Cast<Autodesk.Revit.DB.View>()
-                .Where(v => v.IsTemplate)
-                .ToList();
-
-            // Get mapped and unmapped template names
-            var mappedTemplateNames = mappingResponse.Mappings.Select(m => m.SourceTemplate).ToHashSet();
-            var unmappedTemplateNames = mappingResponse.Unmapped.Select(u => u.SourceTemplate).ToHashSet();
-
-            // Mark templates for deletion (unmapped) or replacement (mapped)
-            foreach (var template in allTemplates)
-            {
-                if (unmappedTemplateNames.Contains(template.Name))
-                {
-                    // Mark for deletion - we'll delete these after copying new templates
-                }
-                else if (mappedTemplateNames.Contains(template.Name))
-                {
-                    // Mark for replacement - these will be replaced by new templates
-                }
-            }
+            // This method is currently empty and can be removed or implemented.
         }
 
-        private int DeleteUnmappedViewTemplates(Document document, ViewTemplateMappingResponse mappingResponse)
+        private int DeleteUnmappedViewTemplates(Document documentToUpdate, ViewTemplateMappingResponse mappingResponse)
         {
-            // Get all view templates in the source document
-            var allTemplates = new FilteredElementCollector(document)
-                .OfClass(typeof(Autodesk.Revit.DB.View))
-                .Cast<Autodesk.Revit.DB.View>()
+            var allTemplates = new FilteredElementCollector(documentToUpdate)
+                .OfClass(typeof(View))
+                .Cast<View>()
                 .Where(v => v.IsTemplate)
                 .ToList();
 
-            // Get unmapped template names
             var unmappedTemplateNames = mappingResponse.Unmapped.Select(u => u.SourceTemplate).ToHashSet();
-
-            // Also include mapped template names that will be replaced
             var mappedTemplateNames = mappingResponse.Mappings.Select(m => m.SourceTemplate).ToHashSet();
 
-            // Collect templates to delete (unmapped + mapped that will be replaced)
             var templatesToDelete = allTemplates
                 .Where(t => unmappedTemplateNames.Contains(t.Name) || mappedTemplateNames.Contains(t.Name))
                 .ToList();
@@ -320,7 +329,7 @@ namespace RebaseProjectWithTemplate.Services
             {
                 try
                 {
-                    document.Delete(template.Id);
+                    documentToUpdate.Delete(template.Id);
                     deletedCount++;
                 }
                 catch (Exception)
@@ -332,37 +341,9 @@ namespace RebaseProjectWithTemplate.Services
             return deletedCount;
         }
 
-        private void StoreOriginalTemplateNames(Document document, List<ViewPlan> views)
-        {
-            var templateLookup = new FilteredElementCollector(document)
-                .OfClass(typeof(Autodesk.Revit.DB.View))
-                .Cast<Autodesk.Revit.DB.View>()
-                .Where(v => v.IsTemplate)
-                .ToDictionary(v => v.Id, v => v.Name);
+        #endregion
 
-            foreach (var view in views)
-            {
-                if (view.ViewTemplateId != ElementId.InvalidElementId &&
-                    templateLookup.ContainsKey(view.ViewTemplateId))
-                {
-                    _originalTemplateNames[view.Id] = templateLookup[view.ViewTemplateId];
-                }
-            }
-        }
-
-        private string GetOriginalTemplateName(ViewPlan view)
-        {
-            return _originalTemplateNames.ContainsKey(view.Id)
-                ? _originalTemplateNames[view.Id]
-                : "";
-        }
-
-
-
-        public void Dispose()
-        {
-            _grokService?.Dispose();
-        }
+        #endregion
     }
 
     public class ViewTemplateRebaseResult
@@ -377,3 +358,4 @@ namespace RebaseProjectWithTemplate.Services
         public ViewTemplateMappingResponse MappingResponse { get; set; }
     }
 }
+

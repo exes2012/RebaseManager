@@ -1,0 +1,31 @@
+Analyze and map source view templates to target templates based on the principles provided in the system prompt.
+
+**SOURCE TEMPLATES:**
+{0}
+
+**TARGET TEMPLATES:**
+{1}
+
+**MAPPING REQUIREMENTS:**
+1.  **1-to-1 Mapping**: Each source maps to ONE target.
+2.  **No Duplicates**: Each target is used ONCE.
+3.  **Semantic Mapping**: Map by function, not text similarity.
+4.  **Version Consolidation**: From multiple versions, map only the most current.
+
+Return response in this exact JSON format:
+```json
+{{
+  "mappings": [
+    {{
+      "sourceTemplate": "exact source name",
+      "targetTemplate": "exact target name"
+    }}
+  ],
+  "unmapped": [
+    {{
+      "sourceTemplate": "exact source name",
+      "reason": "no functional equivalent found or older version"
+    }}
+  ]
+}}
+```

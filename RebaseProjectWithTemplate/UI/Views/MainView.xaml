@@ -1,4 +1,4 @@
-<Window x:Class="RebaseProjectWithTemplate.View.MainView"
+<Window x:Class="RebaseProjectWithTemplate.UI.Views.MainView"
         x:Name="MainViewWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"

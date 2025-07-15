@@ -1,7 +1,6 @@
-using System;
 using System.Windows.Input;
 
-namespace RebaseProjectWithTemplate.ViewModel.Base
+namespace RebaseProjectWithTemplate.UI.ViewModels.Base
 {
     public class RelayCommand : ICommand
     {

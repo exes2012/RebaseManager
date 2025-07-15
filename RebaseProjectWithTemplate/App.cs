@@ -2,7 +2,9 @@ using Autodesk.Revit.UI;
 using System;
 using System.Reflection;
 
-namespace RebaseProjectWithTemplate.App
+using RebaseProjectWithTemplate.UI.Commands;
+
+namespace RebaseProjectWithTemplate
 {
     public class App : IExternalApplication
     {
