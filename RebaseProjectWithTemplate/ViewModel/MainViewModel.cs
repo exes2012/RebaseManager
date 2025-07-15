@@ -1,10 +1,13 @@
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using RebaseProjectWithTemplate.ViewModel.Base;
+using RebaseProjectWithTemplate.Services;
+using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Windows;
 
 namespace RebaseProjectWithTemplate.ViewModel
 {
@@ -14,6 +17,7 @@ namespace RebaseProjectWithTemplate.ViewModel
         private Document _selectedTemplateDocument;
         private string _progressText;
         private bool _isProgressVisible;
+        private bool _isRebaseButtonEnabled = true;
 
         public ObservableCollection<Document> AllOpenDocuments { get; }
         
@@ -59,6 +63,18 @@ namespace RebaseProjectWithTemplate.ViewModel
             }
         }
 
+        public bool IsRebaseButtonEnabled
+        {
+            get => _isRebaseButtonEnabled;
+            set
+            {
+                _isRebaseButtonEnabled = value;
+                OnPropertyChanged();
+            }
+        }
+
+
+
         public ICommand RebaseCommand { get; }
 
         // Parameterless constructor for the designer
@@ -95,19 +111,65 @@ namespace RebaseProjectWithTemplate.ViewModel
         {
             return SelectedSourceDocument != null &&
                    SelectedTemplateDocument != null &&
-                   SelectedSourceDocument.PathName != SelectedTemplateDocument.PathName;
+                   SelectedSourceDocument.PathName != SelectedTemplateDocument.PathName &&
+                   IsRebaseButtonEnabled;
         }
 
-        private void ExecuteRebase(object parameter)
+        private async void ExecuteRebase(object parameter)
         {
             IsProgressVisible = true;
-            ProgressText = "Rebasing in progress...";
+            IsRebaseButtonEnabled = false;
+            ProgressText = "Starting view template rebase...";
 
-            Task.Delay(3000).ContinueWith(t =>
+            try
             {
-                IsProgressVisible = false;
-                ProgressText = "Rebase Completed";
-            }, TaskScheduler.FromCurrentSynchronizationContext());
+                var progress = new Progress<string>(message =>
+                {
+                    ProgressText = message;
+                });
+
+                using (var rebaseService = new ProjectRebaseService())
+                {
+                    var result = await rebaseService.ExecuteFullRebase(
+                        SelectedSourceDocument,
+                        SelectedTemplateDocument,
+                        progress);
+
+                    if (result.Success)
+                    {
+                        ProgressText = "Rebase completed successfully!";
+
+                        MessageBox.Show(
+                            "Project rebase completed successfully!",
+                            "Rebase Complete",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        ProgressText = $"Rebase failed: {result.ErrorMessage}";
+                        MessageBox.Show(
+                            $"View template rebase failed:\n\n{result.ErrorMessage}",
+                            "Rebase Error",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ProgressText = $"Error: {ex.Message}";
+                MessageBox.Show(
+                    $"An error occurred during rebase:\n\n{ex.Message}",
+                    "Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsRebaseButtonEnabled = true;
+                // Keep progress visible to show final status
+            }
         }
     }
 

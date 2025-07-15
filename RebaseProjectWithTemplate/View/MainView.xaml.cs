@@ -40,5 +40,7 @@ namespace RebaseProjectWithTemplate.View
         {
             Close();
         }
+
+
     }
 }

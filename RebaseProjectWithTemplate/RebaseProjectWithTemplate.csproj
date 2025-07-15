@@ -76,6 +76,11 @@
 		<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
 		<GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
 	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="System.Net.Http" Version="4.3.4" />
+		<PackageReference Include="System.Text.Json" Version="8.0.0" />
+	</ItemGroup>
 	<ItemGroup Condition="$(Configuration.Contains('2020'))">
 		<Reference Include="RevitAPI">
 			<HintPath>C:\Program Files\Autodesk\Revit 2020\RevitAPI.dll</HintPath>
@@ -155,6 +160,12 @@
 
 	<ItemGroup>
 		<None Include="RebaseProjectWithTemplate.addin" />
+		<Content Include="appsettings.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Content>
+		<Content Include="appsettings.example.json">
+			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
+		</Content>
 	</ItemGroup>
 
 </Project>

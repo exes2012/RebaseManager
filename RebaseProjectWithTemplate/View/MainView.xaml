@@ -173,6 +173,8 @@
                                 SelectedItem="{Binding SelectedTemplateDocument, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                 DisplayMemberPath="Title"/>
                     </StackPanel>
+
+
                 </StackPanel>
 
                 <!-- Progress Section -->
