@@ -24,6 +24,14 @@ public class App : IExternalApplication
 
         panel.AddItem(buttonData);
 
+        var exportButtonData = new PushButtonData(
+            "ExportAnnotationSymbols",
+            "Export Symbols",
+            assemblyName,
+            "RebaseProjectWithTemplate.Commands.Export.ExportAnnotationSymbolsCommand");
+
+        panel.AddItem(exportButtonData);
+
         return Result.Succeeded;
     }
 

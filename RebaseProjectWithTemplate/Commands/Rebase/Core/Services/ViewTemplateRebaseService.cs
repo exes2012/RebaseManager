@@ -1,53 +1,33 @@
 using Autodesk.Revit.DB;
-using RebaseProjectWithTemplate.Commands.Rebase.Core.Prompts;
-using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Grok;
-using RebaseProjectWithTemplate.Commands.Rebase.Models;
 using RebaseProjectWithTemplate.Commands.Rebase.Core.Abstractions;
+using RebaseProjectWithTemplate.Commands.Rebase.Models;
 using RebaseProjectWithTemplate.Infrastructure;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
+using RebaseProjectWithTemplate.Commands.Rebase.Core.Prompts;
 
 namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
 {
     public class ViewTemplateRebaseService
     {
-        #region Constants
-
-        private const string UnmatchedViewSizeValue = "UNMATCHED";
-        private const string FilterPrefix = "Z-OLD-";
-
-        #endregion
-
-        #region Fields
-
-        private readonly IGrokApiService _grokService;
+        private readonly IAiService _aiService;
         private readonly Dictionary<ElementId, string> _originalTemplateNames = new Dictionary<ElementId, string>();
 
-        #endregion
-
-        #region Constructor
-
-        public ViewTemplateRebaseService(IGrokApiService grokService)
+        public ViewTemplateRebaseService(IAiService aiService)
         {
-            _grokService = grokService;
+            _aiService = aiService;
         }
-
-        #endregion
-
-        #region Helper Methods
 
         private static void UpdateProgress(IProgress<string> progress, string message)
         {
             progress?.Report(message);
             LogHelper.Information($"ViewTemplateRebaseService: {message}");
-
-            // Force UI update
             Application.Current?.Dispatcher?.Invoke(() => { }, DispatcherPriority.Background);
         }
-
-        #endregion
-
-        #region Public Methods
 
         public async Task<ViewTemplateRebaseResult> RebaseViewTemplatesAsync(
             Document documentToUpdate,
@@ -55,7 +35,6 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
             IProgress<string> progress = null)
         {
             var result = new ViewTemplateRebaseResult();
-
             try
             {
                 LogHelper.Information("Starting ViewTemplateRebaseService.RebaseViewTemplatesAsync");
@@ -81,15 +60,15 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
                 UpdateProgress(progress, $"Source templates: {sourceTemplates.Count}, Target templates: {targetTemplates.Count}");
                 UpdateProgress(progress, "Mapping view templates using AI...");
 
-                var mappingStrategy = new ViewTemplateMappingPromptStrategy();
-                var promptData = new ViewTemplateMappingPromptData
+                var strategy = new ViewTemplateMappingPromptStrategy();
+                var data = new ViewTemplateMappingPromptData
                 {
                     SourceTemplates = sourceTemplates,
                     TargetTemplates = targetTemplates
                 };
 
-                LogHelper.Information("Calling Grok API for template mapping");
-                var mappingResponse = await _grokService.ExecuteChatCompletionAsync<ViewTemplateMappingResponse>(mappingStrategy, promptData);
+                LogHelper.Information("Calling AI for template mapping");
+                var mappingResponse = await _aiService.GetMappingAsync<ViewTemplateMappingResponse>(strategy, data);
                 result.MappingResponse = mappingResponse;
                 LogHelper.Information($"AI mapping completed - Mapped: {mappingResponse.Mappings?.Count ?? 0}, Unmapped: {mappingResponse.Unmapped?.Count ?? 0}");
 
@@ -97,22 +76,14 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
 
                 using (var transaction = new Transaction(documentToUpdate, "Rebase View Templates"))
                 {
-                    CommonFailuresPreprocessor.SetFailuresPreprocessor(transaction);
                     transaction.Start();
-
                     try
                     {
                         LogHelper.Information("Starting transaction operations");
 
-                        UpdateProgress(progress, "Analyzing view templates for deletion/replacement...");
-                        MarkViewTemplatesForProcessing(documentToUpdate, mappingResponse);
-
                         UpdateProgress(progress, "Removing view templates from source views...");
                         RemoveViewTemplatesFromViews(sourceViewsWithTemplates);
                         LogHelper.Information($"Removed view templates from {sourceViewsWithTemplates.Count} views");
-
-                        UpdateProgress(progress, "Renaming existing filters...");
-                        RenameFiltersWithPrefix(documentToUpdate);
 
                         UpdateProgress(progress, "Deleting unmapped view templates...");
                         result.TemplatesDeleted = DeleteUnmappedViewTemplates(documentToUpdate, mappingResponse);
@@ -126,11 +97,6 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
                         ApplyMappedViewTemplates(documentToUpdate, sourceViewsWithTemplates, mappingResponse.Mappings);
                         result.ViewsMapped = mappingResponse.Mappings.Count;
                         LogHelper.Information($"Applied view templates to {result.ViewsMapped} views");
-
-                        UpdateProgress(progress, "Setting UNMATCHED for unmapped views...");
-                        SetUnmatchedViewSize(documentToUpdate, sourceViewsWithTemplates, mappingResponse.Unmapped);
-                        result.ViewsUnmatched = mappingResponse.Unmapped.Count;
-                        LogHelper.Information($"Set UNMATCHED for {result.ViewsUnmatched} unmapped views");
 
                         LogHelper.Information("Committing transaction");
                         transaction.Commit();
@@ -158,38 +124,13 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
             return result;
         }
 
-
-
-        #endregion
-
-        #region Private Methods
-
-        #region Data Collection
-
         private List<ViewPlan> CollectViewPlansWithTemplates(Document documentToUpdate)
         {
-            var viewSizeParam = GetViewSizeParameter(documentToUpdate);
-
             return new FilteredElementCollector(documentToUpdate)
                 .OfClass(typeof(ViewPlan))
                 .Cast<ViewPlan>()
-                .Where(v => v.ViewTemplateId != ElementId.InvalidElementId &&
-                           !v.IsTemplate &&
-                           HasNumericViewSize(v, viewSizeParam))
+                .Where(v => v.ViewTemplateId != ElementId.InvalidElementId && !v.IsTemplate)
                 .ToList();
-        }
-
-        private bool HasNumericViewSize(ViewPlan view, Definition viewSizeParam)
-        {
-            if (viewSizeParam == null) return false;
-
-            var param = view.get_Parameter(viewSizeParam);
-            if (param == null || !param.HasValue) return false;
-
-            var viewSizeValue = param.AsString();
-            if (string.IsNullOrWhiteSpace(viewSizeValue)) return false;
-
-            return viewSizeValue.Any(char.IsDigit);
         }
 
         private List<string> CollectViewTemplateNames(Document document)
@@ -227,31 +168,11 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
                 : string.Empty;
         }
 
-        #endregion
-
-        #region Revit Operations
-
         private void RemoveViewTemplatesFromViews(List<ViewPlan> views)
         {
             foreach (var view in views)
             {
                 view.ViewTemplateId = ElementId.InvalidElementId;
-            }
-        }
-
-        private void RenameFiltersWithPrefix(Document documentToUpdate)
-        {
-            var filters = new FilteredElementCollector(documentToUpdate)
-                .OfClass(typeof(ParameterFilterElement))
-                .Cast<ParameterFilterElement>()
-                .ToList();
-
-            foreach (var filter in filters)
-            {
-                if (!filter.Name.StartsWith(FilterPrefix))
-                {
-                    filter.Name = FilterPrefix + filter.Name;
-                }
             }
         }
 
@@ -301,48 +222,6 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
             }
         }
 
-        private void SetUnmatchedViewSize(Document documentToUpdate, List<ViewPlan> views, List<UnmappedViewTemplate> unmapped)
-        {
-            var viewSizeParam = GetViewSizeParameter(documentToUpdate);
-            if (viewSizeParam == null) return;
-
-            var unmappedTemplateNames = unmapped.Select(u => u.SourceTemplate).ToHashSet();
-
-            foreach (var view in views)
-            {
-                var originalTemplateName = GetOriginalTemplateName(view);
-                if (unmappedTemplateNames.Contains(originalTemplateName))
-                {
-                    var param = view.get_Parameter(viewSizeParam);
-                    if (param != null && !param.IsReadOnly)
-                    {
-                        param.Set(UnmatchedViewSizeValue);
-                    }
-                }
-            }
-        }
-
-        private Definition GetViewSizeParameter(Document documentToUpdate)
-        {
-            var collector = new FilteredElementCollector(documentToUpdate)
-                .OfClass(typeof(ParameterElement));
-
-            foreach (ParameterElement param in collector)
-            {
-                if (param.Name.Equals("View Size", StringComparison.OrdinalIgnoreCase))
-                {
-                    return param.GetDefinition();
-                }
-            }
-
-            return null;
-        }
-
-        private void MarkViewTemplatesForProcessing(Document documentToUpdate, ViewTemplateMappingResponse mappingResponse)
-        {
-            // This method is currently empty and can be removed or implemented.
-        }
-
         private int DeleteUnmappedViewTemplates(Document documentToUpdate, ViewTemplateMappingResponse mappingResponse)
         {
             var allTemplates = new FilteredElementCollector(documentToUpdate)
@@ -374,10 +253,6 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
 
             return deletedCount;
         }
-
-        #endregion
-
-        #endregion
     }
 
     public class ViewTemplateRebaseResult
@@ -391,5 +266,21 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
         public int ViewsUnmatched { get; set; }
         public ViewTemplateMappingResponse MappingResponse { get; set; }
     }
-}
 
+    public class ViewTemplateMappingResponse
+    {
+        public List<ViewTemplateMapping> Mappings { get; set; }
+        public List<UnmappedViewTemplate> Unmapped { get; set; }
+    }
+
+    public class ViewTemplateMapping
+    {
+        public string SourceTemplate { get; set; }
+        public string TargetTemplate { get; set; }
+    }
+
+    public class UnmappedViewTemplate
+    {
+        public string SourceTemplate { get; set; }
+    }
+}

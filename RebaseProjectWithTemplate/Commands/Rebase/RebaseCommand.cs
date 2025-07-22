@@ -7,6 +7,7 @@ using RebaseProjectWithTemplate.UI.ViewModels;
 namespace RebaseProjectWithTemplate.Commands.Rebase
 {
     [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
     public class RebaseCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)

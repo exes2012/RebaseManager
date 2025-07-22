@@ -1,23 +1,34 @@
 using System.IO;
+using System.Linq;
 using System.Reflection;
 
-namespace RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.IO;
-
-public static class PromptLoaderService
+namespace RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.IO
 {
-    public static string LoadPrompt(string promptName)
+    public static class PromptLoaderService
     {
-        var assembly = Assembly.GetExecutingAssembly();
-        var resourceName = $"RebaseProjectWithTemplate.Prompts.{promptName}";
-
-        using (var stream = assembly.GetManifestResourceStream(resourceName))
+        public static string LoadPrompt(string promptName)
         {
-            if (stream == null)
-                throw new Exception(
-                    $"Prompt resource '{promptName}' not found. Make sure it is set as an Embedded Resource.");
-            using (var reader = new StreamReader(stream))
+            var assembly = Assembly.GetExecutingAssembly();
+            // Find the resource name that ends with the prompt name, accounting for folder structure.
+            var resourceName = assembly.GetManifestResourceNames()
+                .SingleOrDefault(str => str.EndsWith(promptName));
+
+            if (resourceName == null)
             {
-                return reader.ReadToEnd();
+                throw new FileNotFoundException($"Prompt resource '{promptName}' not found. Make sure it is set as an Embedded Resource and the name is correct.");
+            }
+
+            using (var stream = assembly.GetManifestResourceStream(resourceName))
+            {
+                if (stream == null)
+                {
+                    // This should theoretically not happen if resourceName is not null, but it's good practice to check.
+                    throw new Exception($"Could not load the prompt resource stream for '{promptName}'.");
+                }
+                using (var reader = new StreamReader(stream))
+                {
+                    return reader.ReadToEnd();
+                }
             }
         }
     }

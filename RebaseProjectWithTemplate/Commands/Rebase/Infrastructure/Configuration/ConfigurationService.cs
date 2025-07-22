@@ -8,6 +8,12 @@ public static class ConfigurationService
 {
     private static AppSettings _settings;
 
+    public static string GetAiProvider()
+    {
+        if (_settings == null) LoadSettings();
+        return _settings.AiProvider;
+    }
+
     public static string GetGrokApiKey()
     {
         if (_settings == null) LoadSettings();
@@ -26,6 +32,16 @@ public static class ConfigurationService
             throw new Exception("Grok API URL not configured. Please set your API URL in appsettings.json file.");
 
         return _settings.GrokApiUrl;
+    }
+
+    public static string GetGeminiApiKey()
+    {
+        if (_settings == null) LoadSettings();
+
+        if (string.IsNullOrEmpty(_settings?.GeminiApiKey) || _settings.GeminiApiKey == "YOUR_GEMINI_API_KEY_HERE")
+            throw new Exception("Gemini API key not configured. Please set your API key in appsettings.json file.");
+
+        return _settings.GeminiApiKey;
     }
 
     private static void LoadSettings()
@@ -55,6 +71,8 @@ public static class ConfigurationService
 
 public class AppSettings
 {
+    public string AiProvider { get; set; }
     public string GrokApiKey { get; set; }
     public string GrokApiUrl { get; set; }
+    public string GeminiApiKey { get; set; }
 }

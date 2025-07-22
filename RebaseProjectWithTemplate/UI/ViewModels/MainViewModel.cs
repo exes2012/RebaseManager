@@ -76,6 +76,28 @@ namespace RebaseProjectWithTemplate.UI.ViewModels
             }
         }
 
+        private bool _copyViewTemplates = true;
+        public bool CopyViewTemplates
+        {
+            get => _copyViewTemplates;
+            set
+            {
+                _copyViewTemplates = value;
+                OnPropertyChanged();
+            }
+        }
+
+        private bool _rebaseTitleBlocks = true;
+        public bool RebaseTitleBlocks
+        {
+            get => _rebaseTitleBlocks;
+            set
+            {
+                _rebaseTitleBlocks = value;
+                OnPropertyChanged();
+            }
+        }
+
 
 
         public ICommand RebaseCommand { get; }
@@ -126,7 +148,7 @@ namespace RebaseProjectWithTemplate.UI.ViewModels
 
             IsProgressVisible = true;
             IsRebaseButtonEnabled = false;
-            ProgressText = "Starting view template rebase...";
+            ProgressText = "Starting rebase...";
 
             try
             {
@@ -134,44 +156,38 @@ namespace RebaseProjectWithTemplate.UI.ViewModels
                 {
                     ProgressText = message;
                     LogHelper.Information($"Progress: {message}");
-
-                    // Force UI update
-                    Application.Current.Dispatcher.Invoke(() => { }, DispatcherPriority.Background);
                 });
 
-                using (var grokService = new GrokApiService())
+                var rebaseService = new ProjectRebaseService();
+
+                var result = await rebaseService.ExecuteFullRebase(
+                    SelectedSourceDocument,
+                    SelectedTemplateDocument,
+                    CopyViewTemplates,
+                    RebaseTitleBlocks,
+                    progress);
+
+                if (result.Success)
                 {
-                    var viewTemplateRebaseService = new ViewTemplateRebaseService(grokService);
-                    var viewReplacementService = new ViewReplacementService();
-                    var rebaseService = new ProjectRebaseService(viewTemplateRebaseService, viewReplacementService);
+                    ProgressText = "Rebase completed successfully!";
+                    LogHelper.Information("=== Project Rebase Completed Successfully ===");
 
-                    var result = await rebaseService.ExecuteFullRebase(
-                        SelectedSourceDocument,
-                        SelectedTemplateDocument,
-                        progress);
+                    MessageBox.Show(
+                        "Project rebase completed successfully!",
+                        "Rebase Complete",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+                else
+                {
+                    ProgressText = $"Rebase failed: {result.ErrorMessage}";
+                    LogHelper.Error($"Project Rebase Failed: {result.ErrorMessage}");
 
-                    if (result.Success)
-                    {
-                        ProgressText = "Rebase completed successfully!";
-                        LogHelper.Information("=== Project Rebase Completed Successfully ===");
-
-                        MessageBox.Show(
-                            "Project rebase completed successfully!",
-                            "Rebase Complete",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Information);
-                    }
-                    else
-                    {
-                        ProgressText = $"Rebase failed: {result.ErrorMessage}";
-                        LogHelper.Error($"Project Rebase Failed: {result.ErrorMessage}");
-
-                        MessageBox.Show(
-                            $"View template rebase failed:\n\n{result.ErrorMessage}",
-                            "Rebase Error",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Error);
-                    }
+                    MessageBox.Show(
+                        $"Rebase failed:\n\n{result.ErrorMessage}",
+                        "Rebase Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
                 }
             }
             catch (Exception ex)

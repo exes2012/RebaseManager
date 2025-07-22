@@ -1,0 +1,38 @@
+Your task is to match each old family to the most appropriate new family, and to match the types within those families. The primary matching criterion for families is the semantic similarity of the family names. Specifically, if an old family name is identical to a new family name, with the only difference being a numerical suffix appended to the old family name (e.g., 'FamilyName' and 'FamilyName1'), this should be treated as a duplicate or variation of the same family, and they should be matched.
+Once a family match is determined, you must then match the types within the old family to the types within the new family. Type matching should also be based on semantic similarity.
+**For type matching, apply the following rules in order of priority:**
+1.  **Exact Match:** If an old type name is identical to a new type name, they are matched.
+2.  **Base Name Match (Old Type Variation):** If no exact match is found, attempt to find a match by considering the 'base name' of the old type. The 'base name' is derived by:
+    *   Removing numerical suffixes (e.g., 'TypeName1' becomes 'TypeName', 'TypeName 2' becomes 'TypeName').
+    *   Removing common descriptive additions or phrases (e.g., 'TypeName - Internal' becomes 'TypeName', 'TypeName External' becomes 'TypeName').
+    Match this derived 'base name' against new type names. If multiple new types match the base name, pick the first one encountered in the new family's type list.
+3.  **Partial Substring Match:** If no base name match is found, check if a significant portion of the old type name is a substring of any new type name, or vice versa (ignoring case and common delimiters like spaces, hyphens, underscores). Prioritize the longest common substring match.
+4.  **Fallback to Any Type:** If, after applying all the above semantic matching rules, no clear match is found, and there are available new types within the matched family, select the first available new type from that family as a fallback. If the new family has no types, set the 'NewType' to 'No Match'.
+
+When evaluating family matches, type alignment serves as a strong secondary factor to reinforce or clarify family matches, especially when family names are very similar but not perfectly identical. However, a strong family name match (particularly with numerical suffix variations indicating a duplicate) takes precedence over discrepancies in type lists.
+Matching rules:
+Each old family must be matched to at most one new family in the final output.
+A single new family can be matched to multiple old families if those old families are semantically equivalent (e.g., 'FamilyName' and 'FamilyName1') and all map to that same new family.
+For types: Each old type must be matched to at most one new type within its matched family.
+If a new family's name ends with a number (e.g., "1", "2", "3"), consider it a separate and unique family for matching purposes. When a match is found for an old family that corresponds to such a new family, always use the full, original name (with the number) for the 'New' family name in the output.
+Similarly, if a new type name ends with a number (e.g., "1", "2", "3"), treat it as a separate and unique type for matching purposes. When a match is found for an old type that corresponds to such a new type, always use the full, original name (with the number) for the 'New' type name in the output. This rule primarily dictates how new types are identified as distinct entities. When matching an old type, the semantic similarity rules for base names and partial matches take precedence in finding the most appropriate new type.
+
+Include all old families in the final output. If no clear family match is found for an old family, set its 'New' family name to "No Match" and its 'TypeMatches' array to empty.
+For types within a matched family, if an old type cannot be clearly matched to a new type using the specified rules, set its 'NewType' to "No Match".
+Return only the final list of matches.
+Format the output as a JSON array in this format:
+Generated json
+{
+  "Old": "<OldFamilyName>",
+  "New": "<NewFamilyName>",
+  "TypeMatches": [
+    {
+      "OldType": "<OldTypeName>",
+      "NewType": "<NewTypeName>"
+    }
+    // ... more type matches for this family
+  ]
+}
+Use code with caution.
+Json
+Do not add any explanation, commentary, or headings. Only return the JSON array.

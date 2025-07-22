@@ -1,0 +1,37 @@
+using System.Text.Json;
+using RebaseProjectWithTemplate.Commands.Rebase.Core.Abstractions;
+using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.IO;
+using RebaseProjectWithTemplate.Commands.Rebase.Models;
+using System.Collections.Generic;
+using System.Linq;
+using RebaseProjectWithTemplate.Commands.Export.Models;
+
+namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Prompts
+{
+    public class TitleBlockMappingPromptData : PromptData
+    {
+        public List<FamilyData> OldFamilies { get; set; }
+        public List<FamilyData> NewFamilies { get; set; }
+    }
+
+    public class TitleBlockMappingPromptStrategy : IPromptStrategy
+    {
+        public string GetSystemPrompt()
+        {
+            return PromptLoaderService.LoadPrompt("TitleBlockMapping_System.txt");
+        }
+
+        public string CreateUserPrompt(PromptData data)
+        {
+            if (!(data is TitleBlockMappingPromptData promptData))
+                throw new ArgumentException("Invalid data type for this prompt strategy", nameof(data));
+
+            var userPromptTemplate = PromptLoaderService.LoadPrompt("TitleBlockMapping_User.txt");
+
+            var oldFamiliesJson = JsonSerializer.Serialize(promptData.OldFamilies.Select(f => new { f.FamilyName, Types = f.Types.Select(t => t.TypeName).ToList() }));
+            var newFamiliesJson = JsonSerializer.Serialize(promptData.NewFamilies.Select(f => new { f.FamilyName, Types = f.Types.Select(t => t.TypeName).ToList() }));
+
+            return string.Format(userPromptTemplate, oldFamiliesJson, newFamiliesJson);
+        }
+    }
+}
