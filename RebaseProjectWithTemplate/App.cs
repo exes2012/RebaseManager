@@ -32,6 +32,14 @@ public class App : IExternalApplication
 
         panel.AddItem(exportButtonData);
 
+        var testCategoryButtonData = new PushButtonData(
+            "TestCategoryRebase",
+            "Test Category Rebase",
+            assemblyName,
+            "RebaseProjectWithTemplate.Commands.Rebase.TestCategoryRebaseCommand");
+
+        panel.AddItem(testCategoryButtonData);
+
         return Result.Succeeded;
     }
 

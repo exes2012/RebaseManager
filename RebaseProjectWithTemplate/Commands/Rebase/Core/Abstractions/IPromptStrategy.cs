@@ -1,10 +1,11 @@
-namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Abstractions
-{
-    public abstract class PromptData { }
+namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Abstractions;
 
-    public interface IPromptStrategy
-    {
-        string GetSystemPrompt();
-        string CreateUserPrompt(PromptData data);
-    }
+public abstract class PromptData
+{
+}
+
+public interface IPromptStrategy
+{
+    string GetSystemPrompt();
+    string CreateUserPrompt(PromptData data);
 }

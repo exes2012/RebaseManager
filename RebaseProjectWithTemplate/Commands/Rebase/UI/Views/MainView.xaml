@@ -1,0 +1,58 @@
+
+<Window x:Class="RebaseProjectWithTemplate.Commands.Rebase.UI.Views.MainView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:viewModels="clr-namespace:RebaseProjectWithTemplate.Commands.Rebase.UI.ViewModels"
+        mc:Ignorable="d"
+        Title="Rebase Project"
+        Width="450" Height="250"
+        WindowStartupLocation="CenterScreen">
+    <Window.DataContext>
+        <viewModels:MainViewModel/>
+    </Window.DataContext>
+    <StackPanel Margin="15">
+        <TextBlock Text="Select Source Document:"/>
+        <ComboBox ItemsSource="{Binding Documents}"
+                  SelectedItem="{Binding SelectedSourceDocument}"
+                  DisplayMemberPath="Title"
+                  Margin="0,5,0,15"/>
+
+        <TextBlock Text="Select Template Document:"/>
+        <ComboBox ItemsSource="{Binding Documents}"
+                  SelectedItem="{Binding SelectedTemplateDocument}"
+                  DisplayMemberPath="Title"
+                  Margin="0,5,0,15"/>
+
+        <TextBlock Text="⚠️ Source and Template documents must be different"
+                   Foreground="Red"
+                   FontSize="12"
+                   Margin="0,0,0,10">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding ShowSameDocumentWarning}" Value="True">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
+
+        <Button Command="{Binding RebaseCommand}"
+                Content="Rebase"
+                IsEnabled="{Binding CanExecuteRebase}"
+                Padding="10,5"/>
+
+        <TextBlock Text="{Binding ProgressText}" 
+                   HorizontalAlignment="Center" 
+                   VerticalAlignment="Bottom" 
+                   Margin="0,15,0,0"/>
+                   
+        <ProgressBar IsIndeterminate="{Binding IsRebaseInProgress}" 
+                     Height="10" 
+                     Margin="0,5,0,0"/>
+    </StackPanel>
+</Window>

@@ -1,10 +1,4 @@
-namespace RebaseProjectWithTemplate.Commands.Export.Models;
-
-public class CategoryData
-{
-    public string CategoryName { get; set; }
-    public List<FamilyData> Families { get; set; }
-}
+namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Models;
 
 public class FamilyData
 {

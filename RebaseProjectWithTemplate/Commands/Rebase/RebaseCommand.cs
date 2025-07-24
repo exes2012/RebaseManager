@@ -1,8 +1,9 @@
+
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using RebaseProjectWithTemplate.UI.Views;
-using RebaseProjectWithTemplate.UI.ViewModels;
+using RebaseProjectWithTemplate.Commands.Rebase.UI.ViewModels;
+using RebaseProjectWithTemplate.Commands.Rebase.UI.Views;
 
 namespace RebaseProjectWithTemplate.Commands.Rebase
 {

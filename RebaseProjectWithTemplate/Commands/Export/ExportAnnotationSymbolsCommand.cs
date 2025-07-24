@@ -2,32 +2,30 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using RebaseProjectWithTemplate.Commands.Export.Services;
-using System;
 
-namespace RebaseProjectWithTemplate.Commands.Export
+namespace RebaseProjectWithTemplate.Commands.Export;
+
+[Transaction(TransactionMode.Manual)]
+public class ExportAnnotationSymbolsCommand : IExternalCommand
 {
-    [Transaction(TransactionMode.Manual)]
-    public class ExportAnnotationSymbolsCommand : IExternalCommand
+    public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
     {
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        try
         {
-            try
-            {
-                var uiDoc = commandData.Application.ActiveUIDocument;
-                var doc = uiDoc.Document;
+            var uiDoc = commandData.Application.ActiveUIDocument;
+            var doc = uiDoc.Document;
 
-                var exportService = new AnnotationSymbolsExportService(doc);
-                exportService.ExportAnnotationSymbols();
+            var exportService = new AnnotationSymbolsExportService(doc);
+            exportService.ExportAnnotationSymbols();
 
-                TaskDialog.Show("Success", "Annotation symbols exported successfully.");
+            TaskDialog.Show("Success", "Annotation symbols exported successfully.");
 
-                return Result.Succeeded;
-            }
-            catch (Exception ex)
-            {
-                message = ex.Message;
-                return Result.Failed;
-            }
+            return Result.Succeeded;
+        }
+        catch (Exception ex)
+        {
+            message = ex.Message;
+            return Result.Failed;
         }
     }
 }

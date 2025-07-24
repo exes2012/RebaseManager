@@ -1,9 +1,6 @@
-using System.Threading.Tasks;
+namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Abstractions;
 
-namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Abstractions
+public interface IAiService
 {
-    public interface IAiService
-    {
-        Task<TResponse> GetMappingAsync<TResponse>(IPromptStrategy strategy, PromptData data);
-    }
+    Task<TResponse> GetMappingAsync<TResponse>(IPromptStrategy strategy, PromptData data);
 }
