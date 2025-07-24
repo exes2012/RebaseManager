@@ -50,30 +50,63 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Revit
             return list;
         }
 
-        public void RenameFamilies(BuiltInCategory category, IEnumerable<string> looseNames, string suffix)
+        public void RenameFamilies(BuiltInCategory category, IEnumerable<string> looseNames, string suffix, IProgress<string> progress = null)
         {
-            var fams = new FilteredElementCollector(_doc)
+            var famsToRename = new FilteredElementCollector(_doc)
                 .OfCategory(category)
                 .WhereElementIsElementType()
                 .Cast<FamilySymbol>()
                 .Select(s => s.Family)
                 .Distinct(new FamCmp())
-                .Where(f => looseNames.Contains(f.Name));
+                .Where(f => looseNames.Contains(f.Name))
+                .ToList();
 
-            using (var tx = new Transaction(_doc, "mark *_old"))
+            if (!famsToRename.Any())
             {
-                tx.Start();
-                int count = 0;
-                foreach (var f in fams)
-                {
-                    var newName = MakeUnique(_doc, f.Name + suffix);
-                    LogHelper.Information($"Renaming family '{f.Name}' to '{newName}'");
-                    f.Name = newName;
-                    count++;
-                }
-                tx.Commit();
-                LogHelper.Information($"Renamed {count} families.");
+                LogHelper.Information("No families to rename.");
+                return;
             }
+
+            var allFamilyNames = new HashSet<string>(new FilteredElementCollector(_doc).OfClass(typeof(Family)).Select(f => f.Name));
+            int renamedCount = 0;
+
+            for (int i = 0; i < famsToRename.Count; i++)
+            {
+                var f = famsToRename[i];
+                string originalName = f.Name;
+
+                using (var tx = new Transaction(_doc, $"Rename family {originalName}"))
+                {
+                    tx.Start();
+
+                    string baseName = originalName + suffix;
+                    string newName = baseName;
+                    int j = 1;
+                    while (allFamilyNames.Contains(newName))
+                    {
+                        newName = baseName + "_" + (j++);
+                    }
+
+                    try
+                    {
+                        f.Name = newName;
+                        tx.Commit();
+
+                        allFamilyNames.Remove(originalName); 
+                        allFamilyNames.Add(newName);
+                        renamedCount++;
+
+                        LogHelper.Information($"Renamed family '{originalName}' to '{newName}'");
+                        progress?.Report($"Renaming families: {i + 1}/{famsToRename.Count}");
+                    }
+                    catch (Exception ex)
+                    {
+                        LogHelper.Error($"Failed to rename family '{originalName}'. Error: {ex.Message}");
+                        tx.RollBack();
+                    }
+                }
+            }
+            LogHelper.Information($"Renamed {renamedCount} families in total.");
         }
 
         public void LoadFamilies(BuiltInCategory category, IEnumerable<string> exactNames)
@@ -177,9 +210,11 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Revit
                 .ToList();
 
             int switched = 0;
+            LogHelper.Information($"Switching {instIds.Count} instances...");
             using (var tx = new Transaction(_doc, "switch symbols"))
             {
                 tx.Start();
+                LogHelper.Information("Transaction started for switching instances.");
                 foreach (var instId in instIds)
                 {
                     var inst = _doc.GetElement(instId) as FamilyInstance;
@@ -199,7 +234,9 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Revit
                     switched++;
                 }
 
-                _doc.Regenerate();
+                LogHelper.Information("Committing transaction for switching instances...");
+
+                //_doc.Regenerate();
                 tx.Commit();
             }
             LogHelper.Information($"Switched {switched} instances.");
@@ -289,14 +326,7 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Revit
             return p.Id.IntegerValue > 0;
         }
 
-        private static string MakeUnique(Document d, string baseName)
-        {
-            var names = new HashSet<string>(new FilteredElementCollector(d).OfClass(typeof(Family)).Select(f => f.Name));
-            string n = baseName;
-            int i = 1;
-            while (names.Contains(n)) n = baseName + "_" + (i++);
-            return n;
-        }
+        
 
         private class OverwriteOpts : IFamilyLoadOptions
         {

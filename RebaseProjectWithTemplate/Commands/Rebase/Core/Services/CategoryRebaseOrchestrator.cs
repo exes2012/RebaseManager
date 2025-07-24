@@ -31,11 +31,8 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
 
         public async Task RebaseAsync(Document document, BuiltInCategory bic, IPromptStrategy strategy, IProgress<string> progress)
         {
-            // Wrap progress with DoEvents for UI responsiveness
-            var progressWithDoEvents = progress.WithDoEvents();
-
             LogHelper.Information($"[{bic}] Starting rebase process...");
-            progressWithDoEvents?.Report($"[{bic}] Collecting family data...");
+            progress?.Report($"[{bic}] Collecting family data...");
 
             var srcData = _familyRepo.CollectFamilyData(bic);
             var tplData = _familyRepo.CollectFamilyData(bic, fromTemplate: true);
@@ -44,7 +41,7 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
             if (srcData.Count == 0 || tplData.Count == 0)
             {
                 LogHelper.Warning($"[{bic}] No families found in source or template. Skipping rebase.");
-                progressWithDoEvents?.Report($"[{bic}] No families to rebase. Skipped.");
+                progress?.Report($"[{bic}] No families to rebase. Skipped.");
                 return;
             }
 
@@ -52,26 +49,27 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
             var looseSrc = srcData.Where(f => !exactNames.Contains(f.FamilyName)).ToList();
             LogHelper.Information($"[{bic}] Found {exactNames.Count} families with exact name matches and {looseSrc.Count} loose families.");
 
-            progressWithDoEvents?.Report($"[{bic}] Getting AI mapping for {looseSrc.Count} families...");
+            progress?.Report($"[{bic}] Getting AI mapping for {looseSrc.Count} families...");
             var mapping = await GetAiMappingAsync(looseSrc, tplData, strategy);
             LogHelper.Information($"[{bic}] AI mapping received with {mapping.Count} results.");
 
             var oldData = looseSrc.ToDictionary(f => f.FamilyName, f => f);
 
-            progressWithDoEvents?.Report($"[{bic}] Renaming old families...");
-            _familyRepo.RenameFamilies(bic, oldData.Keys, _oldSuffix);
+            progress?.Report($"[{bic}] Renaming old families...");
+            _familyRepo.RenameFamilies(bic, oldData.Keys, _oldSuffix, progress);
 
-            progressWithDoEvents?.Report($"[{bic}] Loading new families...");
+            progress?.Report($"[{bic}] Loading new families...");
             _familyRepo.LoadFamilies(bic, exactNames);
 
-            var allTemplateTypeIds = tplData
+            var typesToCopy = tplData
+                .Where(f => !exactNames.Contains(f.FamilyName))
                 .SelectMany(f => f.Types)
                 .Select(t => new ElementId(Convert.ToInt32(t.TypeId)))
                 .Distinct()
                 .ToList();
 
-            progressWithDoEvents?.Report($"[{bic}] Copying {allTemplateTypeIds.Count} types from template...");
-            _familyRepo.CopyTemplateTypes(allTemplateTypeIds, progressWithDoEvents);
+            progress?.Report($"[{bic}] Copying {typesToCopy.Count} new types from template...");
+            _familyRepo.CopyTemplateTypes(typesToCopy, progress);
 
             var mappedNewNames = mapping
                 .Where(m => !string.IsNullOrEmpty(m.New) && m.New != "No Match")
@@ -81,15 +79,15 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
 
             var newData = _familyRepo.CollectFamilyData(bic).Where(f => mappedNewNames.Contains(f.FamilyName)).ToDictionary(f => f.FamilyName, f => f);
 
-            progressWithDoEvents?.Report($"[{bic}] Switching instances...");
+            progress?.Report($"[{bic}] Switching instances...");
             var idMap = _familyRepo.BuildIdMap(oldData, newData, mapping);
             _familyRepo.SwitchInstances(bic, idMap);
 
-            progressWithDoEvents?.Report($"[{bic}] Purging obsolete families...");
+            progress?.Report($"[{bic}] Purging obsolete families...");
             _familyRepo.PurgeFamilies(bic, _oldSuffix);
 
             // Generate Excel report
-            progressWithDoEvents?.Report($"[{bic}] Generating Excel report...");
+            progress?.Report($"[{bic}] Generating Excel report...");
             var report = _reportBuilder.BuildReport(
                 document.Title,
                 bic,

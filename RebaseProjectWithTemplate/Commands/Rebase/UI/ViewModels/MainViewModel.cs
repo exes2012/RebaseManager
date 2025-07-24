@@ -2,7 +2,7 @@
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Microsoft.Win32;
-using RebaseProjectWithTemplate.Commands.Rebase.Core.Models;
+using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.UI;
 using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.DependencyInjection;
 using RebaseProjectWithTemplate.UI.ViewModels.Base;
 using System;
@@ -104,7 +104,7 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.UI.ViewModels
 
                 var orchestrator = ServiceProvider.CreateRebaseOrchestrator(rebasedDocument, templateDocument);
 
-                var progress = new Progress<string>(message => ProgressText = message);
+                var progress = new Progress<string>(message => ProgressText = message).WithDoEvents();
 
                 var result = await orchestrator.ExecuteFullRebase(true, true, progress);
 
