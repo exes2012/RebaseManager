@@ -1,12 +1,12 @@
 
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
+using Microsoft.Win32;
 using RebaseProjectWithTemplate.Commands.Rebase.Core.Models;
 using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.DependencyInjection;
 using RebaseProjectWithTemplate.UI.ViewModels.Base;
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Input;
 
@@ -17,8 +17,7 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.UI.ViewModels
         private readonly UIApplication _uiApp;
         private bool _isRebaseInProgress;
         private string _progressText;
-        private Document _selectedSourceDocument;
-        private Document _selectedTemplateDocument;
+        private string _templateFilePath;
 
         public MainViewModel() : this(null)
         {
@@ -27,35 +26,22 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.UI.ViewModels
         public MainViewModel(UIApplication uiApp)
         {
             _uiApp = uiApp;
-            Documents = uiApp?.Application.Documents.Cast<Document>().ToList() ?? new List<Document>();
-            RebaseCommand = new RelayCommand(async (o) => await ExecuteRebaseCommandAsync());
+            BrowseCommand = new RelayCommand(ExecuteBrowseCommand);
+            RebaseCommand = new RelayCommand(async (o) => await ExecuteRebaseCommandAsync(), (o) => CanExecuteRebase);
         }
 
-        public List<Document> Documents { get; }
-
-        public Document SelectedSourceDocument
-        {
-            get => _selectedSourceDocument;
-            set
-            {
-                SetProperty(ref _selectedSourceDocument, value);
-                OnPropertyChanged(nameof(CanExecuteRebase));
-                OnPropertyChanged(nameof(ShowSameDocumentWarning));
-            }
-        }
-
-        public Document SelectedTemplateDocument
-        {
-            get => _selectedTemplateDocument;
-            set
-            {
-                SetProperty(ref _selectedTemplateDocument, value);
-                OnPropertyChanged(nameof(CanExecuteRebase));
-                OnPropertyChanged(nameof(ShowSameDocumentWarning));
-            }
-        }
-
+        public ICommand BrowseCommand { get; }
         public ICommand RebaseCommand { get; }
+
+        public string TemplateFilePath
+        {
+            get => _templateFilePath;
+            set
+            {
+                SetProperty(ref _templateFilePath, value);
+                OnPropertyChanged(nameof(CanExecuteRebase));
+            }
+        }
 
         public bool IsRebaseInProgress
         {
@@ -73,14 +59,22 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.UI.ViewModels
             set => SetProperty(ref _progressText, value);
         }
 
-        public bool CanExecuteRebase => SelectedSourceDocument != null &&
-                                       SelectedTemplateDocument != null &&
-                                       SelectedSourceDocument != SelectedTemplateDocument &&
+        public bool CanExecuteRebase => !string.IsNullOrEmpty(TemplateFilePath) &&
                                        !IsRebaseInProgress;
 
-        public bool ShowSameDocumentWarning => SelectedSourceDocument != null &&
-                                              SelectedTemplateDocument != null &&
-                                              SelectedSourceDocument == SelectedTemplateDocument;
+        private void ExecuteBrowseCommand(object obj)
+        {
+            var openFileDialog = new OpenFileDialog
+            {
+                Filter = "Revit Files (*.rvt)|*.rvt",
+                Title = "Select Template File"
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                TemplateFilePath = openFileDialog.FileName;
+            }
+        }
 
         private async Task ExecuteRebaseCommandAsync()
         {
@@ -95,7 +89,20 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.UI.ViewModels
 
             try
             {
-                var orchestrator = ServiceProvider.CreateRebaseOrchestrator(SelectedSourceDocument, SelectedTemplateDocument);
+                var sourceDocument = _uiApp.ActiveUIDocument.Document;
+                var sourcePath = sourceDocument.PathName;
+                sourceDocument.Save();
+
+                var rebasedPath = Path.Combine(Path.GetDirectoryName(sourcePath),
+                    $"{Path.GetFileNameWithoutExtension(sourcePath)}_REBASED{Path.GetExtension(sourcePath)}");
+
+                File.Copy(sourcePath, rebasedPath, true);
+
+                var rebasedDocument = _uiApp.Application.OpenDocumentFile(rebasedPath);
+                var templateDocument = _uiApp.Application.OpenDocumentFile(TemplateFilePath);
+
+
+                var orchestrator = ServiceProvider.CreateRebaseOrchestrator(rebasedDocument, templateDocument);
 
                 var progress = new Progress<string>(message => ProgressText = message);
 
@@ -109,6 +116,8 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.UI.ViewModels
                 {
                     TaskDialog.Show("Error", $"Rebase failed: {result.ErrorMessage}");
                 }
+                rebasedDocument.Close(true);
+                templateDocument.Close(false);
             }
             catch (Exception ex)
             {

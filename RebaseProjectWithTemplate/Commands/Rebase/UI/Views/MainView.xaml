@@ -13,46 +13,28 @@
         <viewModels:MainViewModel/>
     </Window.DataContext>
     <StackPanel Margin="15">
-        <TextBlock Text="Select Source Document:"/>
-        <ComboBox ItemsSource="{Binding Documents}"
-                  SelectedItem="{Binding SelectedSourceDocument}"
-                  DisplayMemberPath="Title"
-                  Margin="0,5,0,15"/>
-
-        <TextBlock Text="Select Template Document:"/>
-        <ComboBox ItemsSource="{Binding Documents}"
-                  SelectedItem="{Binding SelectedTemplateDocument}"
-                  DisplayMemberPath="Title"
-                  Margin="0,5,0,15"/>
-
-        <TextBlock Text="⚠️ Source and Template documents must be different"
-                   Foreground="Red"
-                   FontSize="12"
-                   Margin="0,0,0,10">
-            <TextBlock.Style>
-                <Style TargetType="TextBlock">
-                    <Setter Property="Visibility" Value="Collapsed"/>
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding ShowSameDocumentWarning}" Value="True">
-                            <Setter Property="Visibility" Value="Visible"/>
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </TextBlock.Style>
-        </TextBlock>
+        <TextBlock Text="Select Template File:"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox Text="{Binding TemplateFilePath, Mode=OneWay}" IsReadOnly="True" Margin="0,5,5,15"/>
+            <Button Grid.Column="1" Content="Browse..." Command="{Binding BrowseCommand}" Margin="0,5,0,15" Padding="10, 0"/>
+        </Grid>
 
         <Button Command="{Binding RebaseCommand}"
                 Content="Rebase"
                 IsEnabled="{Binding CanExecuteRebase}"
                 Padding="10,5"/>
 
-        <TextBlock Text="{Binding ProgressText}" 
-                   HorizontalAlignment="Center" 
-                   VerticalAlignment="Bottom" 
+        <TextBlock Text="{Binding ProgressText}"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Bottom"
                    Margin="0,15,0,0"/>
-                   
-        <ProgressBar IsIndeterminate="{Binding IsRebaseInProgress}" 
-                     Height="10" 
+
+        <ProgressBar IsIndeterminate="{Binding IsRebaseInProgress}"
+                     Height="10"
                      Margin="0,5,0,0"/>
     </StackPanel>
 </Window>
