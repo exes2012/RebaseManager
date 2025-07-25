@@ -319,7 +319,7 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Revit
             }
         }
 
-        private static bool IsUserDefinedWritable(Parameter p)
+        private static bool  IsUserDefinedWritable(Parameter p)
         { 
             if (p == null || p.IsReadOnly) return false;
             if (p.IsShared) return true;

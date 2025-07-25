@@ -40,6 +40,14 @@ public class App : IExternalApplication
 
         panel.AddItem(testCategoryButtonData);
 
+        var replaceSpecialityEquipmentButtonData = new PushButtonData(
+            "ReplaceSpecialityEquipment",
+            "Replace Speciality Equipment",
+            assemblyName,
+            "RebaseProjectWithTemplate.Commands.ReplaceSpecialityEquipment.ReplaceSpecialityEquipmentCommand");
+
+        panel.AddItem(replaceSpecialityEquipmentButtonData);
+
         return Result.Succeeded;
     }
 
