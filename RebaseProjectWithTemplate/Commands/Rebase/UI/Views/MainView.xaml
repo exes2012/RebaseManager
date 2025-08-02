@@ -7,7 +7,7 @@
         xmlns:viewModels="clr-namespace:RebaseProjectWithTemplate.Commands.Rebase.UI.ViewModels"
         mc:Ignorable="d"
         Title="Rebase Project"
-        Width="450" Height="250"
+        Width="450" Height="400"
         WindowStartupLocation="CenterScreen">
     <Window.DataContext>
         <viewModels:MainViewModel/>
@@ -22,6 +22,17 @@
             <TextBox Text="{Binding TemplateFilePath, Mode=OneWay}" IsReadOnly="True" Margin="0,5,5,15"/>
             <Button Grid.Column="1" Content="Browse..." Command="{Binding BrowseCommand}" Margin="0,5,0,15" Padding="10, 0"/>
         </Grid>
+
+        <!-- Rebase Options -->
+        <GroupBox Header="Rebase Options" Margin="0,0,0,15">
+            <StackPanel Margin="10">
+                <CheckBox Content="View Templates" IsChecked="{Binding RebaseViewTemplates}" Margin="0,2"/>
+                <CheckBox Content="Title Blocks (Families)" IsChecked="{Binding RebaseTitleBlocks}" Margin="0,2"/>
+                <CheckBox Content="System Elements (Floors, Walls, etc.)" IsChecked="{Binding RebaseSystemElements}" Margin="0,2"/>
+                <CheckBox Content="Schedules" IsChecked="{Binding RebaseSchedules}" Margin="0,2"/>
+                <CheckBox Content="Shared Parameters" IsChecked="{Binding RebaseSharedParameters}" Margin="0,2"/>
+            </StackPanel>
+        </GroupBox>
 
         <Button Command="{Binding RebaseCommand}"
                 Content="Rebase"

@@ -1,4 +1,4 @@
-using System.Text.Json;
+using Newtonsoft.Json;
 using RebaseProjectWithTemplate.Commands.Rebase.Core.Abstractions;
 using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.IO;
 
@@ -23,8 +23,8 @@ public class ViewTemplateMappingPromptStrategy : IPromptStrategy
             throw new ArgumentException("Invalid data type for this prompt strategy", nameof(data));
 
         var userPromptTemplate = PromptLoaderService.LoadPrompt("ViewTemplateMapping_User.txt");
-        var sourceJson = JsonSerializer.Serialize(promptData.SourceTemplates);
-        var targetJson = JsonSerializer.Serialize(promptData.TargetTemplates);
+        var sourceJson = JsonConvert.SerializeObject(promptData.SourceTemplates);
+        var targetJson = JsonConvert.SerializeObject(promptData.TargetTemplates);
 
         return string.Format(userPromptTemplate, sourceJson, targetJson);
     }

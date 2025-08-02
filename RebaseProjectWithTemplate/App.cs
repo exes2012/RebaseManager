@@ -32,6 +32,8 @@ public class App : IExternalApplication
 
         panel.AddItem(exportButtonData);
 
+
+
         var testCategoryButtonData = new PushButtonData(
             "TestCategoryRebase",
             "Test Category Rebase",
@@ -47,6 +49,22 @@ public class App : IExternalApplication
             "RebaseProjectWithTemplate.Commands.ReplaceSpecialityEquipment.ReplaceSpecialityEquipmentCommand");
 
         panel.AddItem(replaceSpecialityEquipmentButtonData);
+
+        var testRebaseButtonData = new PushButtonData(
+            "TestRebase",
+            "Test Rebase",
+            assemblyName,
+            "RebaseProjectWithTemplate.Commands.TestRebase.TestRebaseCommand");
+
+        panel.AddItem(testRebaseButtonData);
+
+        var deleteSpecialtyEquipmentButtonData = new PushButtonData(
+            "DeleteSpecialtyEquipment",
+            "Delete Specialty Equipment",
+            assemblyName,
+            "RebaseProjectWithTemplate.Commands.DeleteSpecialtyEquipmentCommand");
+
+        panel.AddItem(deleteSpecialtyEquipmentButtonData);
 
         return Result.Succeeded;
     }

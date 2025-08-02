@@ -1,0 +1,96 @@
+<Window x:Class="RebaseProjectWithTemplate.Commands.TestRebase.UI.Views.TestRebaseView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Test Rebase" Height="300" Width="500"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize">
+    
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title -->
+        <TextBlock Grid.Row="0" 
+                   Text="Test Rebase - Copy Symbols and Switch Instances"
+                   FontSize="16" 
+                   FontWeight="Bold"
+                   HorizontalAlignment="Center"
+                   Margin="0,0,0,20"/>
+
+        <!-- Template Selection -->
+        <Grid Grid.Row="1" Margin="0,0,0,15">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
+            <TextBlock Grid.Column="0" 
+                       Text="Template:" 
+                       VerticalAlignment="Center"
+                       Margin="0,0,10,0"/>
+            
+            <TextBox Grid.Column="1" 
+                     Text="{Binding TemplatePath}"
+                     IsReadOnly="True"
+                     VerticalAlignment="Center"
+                     Margin="0,0,10,0"/>
+            
+            <Button Grid.Column="2" 
+                    Content="Browse..."
+                    Command="{Binding BrowseTemplateCommand}"
+                    Padding="10,5"
+                    MinWidth="80"/>
+        </Grid>
+
+        <!-- Status -->
+        <TextBlock Grid.Row="2" 
+                   Text="{Binding Status}"
+                   FontStyle="Italic"
+                   Margin="0,0,0,15"
+                   TextWrapping="Wrap"/>
+
+        <!-- Description -->
+        <TextBlock Grid.Row="3" 
+                   Margin="0,0,0,15"
+                   TextWrapping="Wrap">
+            <Run Text="This test will:"/>
+            <LineBreak/>
+            <Run Text="1. Copy all template types that don't have exact name matches"/>
+            <LineBreak/>
+            <Run Text="2. Create a simple test mapping (first loose source → first template)"/>
+            <LineBreak/>
+            <Run Text="3. Switch instances using mass replace method"/>
+            <LineBreak/>
+            <Run Text="4. Remove old families after switching"/>
+        </TextBlock>
+
+        <!-- Spacer -->
+        <Border Grid.Row="4"/>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="5" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Right">
+            
+            <Button Content="Run Test"
+                    Command="{Binding TestRebaseCommand}"
+                    IsDefault="True"
+                    Padding="15,8"
+                    Margin="0,0,10,0"
+                    MinWidth="100"/>
+            
+            <Button Content="Close"
+                    IsCancel="True"
+                    Padding="15,8"
+                    MinWidth="100"
+                    Click="CloseButton_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

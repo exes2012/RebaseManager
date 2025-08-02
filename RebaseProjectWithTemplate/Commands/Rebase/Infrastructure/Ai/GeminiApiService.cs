@@ -1,7 +1,6 @@
 using System.Net.Http;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using Newtonsoft.Json;
 using RebaseProjectWithTemplate.Commands.Rebase.Core.Abstractions;
 using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Configuration;
 
@@ -75,12 +74,12 @@ public class GeminiApiService : IAiService
 
         try
         {
-            var jsonOptions = new JsonSerializerOptions
+            var jsonSettings = new JsonSerializerSettings
             {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
             };
 
-            var json = JsonSerializer.Serialize(requestBody, jsonOptions);
+            var json = JsonConvert.SerializeObject(requestBody, jsonSettings);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             var response = await _httpClient.PostAsync(url, content);
 
@@ -89,13 +88,13 @@ public class GeminiApiService : IAiService
             if (!response.IsSuccessStatusCode)
                 throw new Exception($"Gemini API error: {response.StatusCode} - {responseContent}");
 
-            var geminiResponse = JsonSerializer.Deserialize<GeminiResponse>(responseContent, jsonOptions);
+            var geminiResponse = JsonConvert.DeserializeObject<GeminiResponse>(responseContent, jsonSettings);
             var mappedJson = geminiResponse?.Candidates?[0]?.Content?.Parts?[0]?.Text;
 
             if (string.IsNullOrEmpty(mappedJson))
                 throw new Exception("Failed to extract JSON from Gemini API response.");
 
-            return JsonSerializer.Deserialize<TResponse>(mappedJson, jsonOptions);
+            return JsonConvert.DeserializeObject<TResponse>(mappedJson, jsonSettings);
         }
         catch (Exception ex)
         {
@@ -107,20 +106,20 @@ public class GeminiApiService : IAiService
 // Helper classes for parsing Gemini's response
 internal class GeminiResponse
 {
-    [JsonPropertyName("candidates")] public List<Candidate> Candidates { get; set; }
+    [JsonProperty("candidates")] public List<Candidate> Candidates { get; set; }
 }
 
 internal class Candidate
 {
-    [JsonPropertyName("content")] public Content Content { get; set; }
+    [JsonProperty("content")] public Content Content { get; set; }
 }
 
 internal class Content
 {
-    [JsonPropertyName("parts")] public List<Part> Parts { get; set; }
+    [JsonProperty("parts")] public List<Part> Parts { get; set; }
 }
 
 internal class Part
 {
-    [JsonPropertyName("text")] public string Text { get; set; }
+    [JsonProperty("text")] public string Text { get; set; }
 }

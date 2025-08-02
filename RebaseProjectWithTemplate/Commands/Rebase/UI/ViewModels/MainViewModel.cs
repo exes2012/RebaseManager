@@ -19,6 +19,13 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.UI.ViewModels
         private string _progressText;
         private string _templateFilePath;
 
+        // Rebase options
+        private bool _rebaseViewTemplates = true;
+        private bool _rebaseTitleBlocks = true;
+        private bool _rebaseSystemElements = true;
+        private bool _rebaseSchedules = true;
+        private bool _rebaseSharedParameters = true;
+
         public MainViewModel() : this(null)
         {
         }
@@ -61,6 +68,37 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.UI.ViewModels
 
         public bool CanExecuteRebase => !string.IsNullOrEmpty(TemplateFilePath) &&
                                        !IsRebaseInProgress;
+
+        // Rebase options properties
+        public bool RebaseViewTemplates
+        {
+            get => _rebaseViewTemplates;
+            set => SetProperty(ref _rebaseViewTemplates, value);
+        }
+
+        public bool RebaseTitleBlocks
+        {
+            get => _rebaseTitleBlocks;
+            set => SetProperty(ref _rebaseTitleBlocks, value);
+        }
+
+        public bool RebaseSystemElements
+        {
+            get => _rebaseSystemElements;
+            set => SetProperty(ref _rebaseSystemElements, value);
+        }
+
+        public bool RebaseSchedules
+        {
+            get => _rebaseSchedules;
+            set => SetProperty(ref _rebaseSchedules, value);
+        }
+
+        public bool RebaseSharedParameters
+        {
+            get => _rebaseSharedParameters;
+            set => SetProperty(ref _rebaseSharedParameters, value);
+        }
 
         private void ExecuteBrowseCommand(object obj)
         {
@@ -106,7 +144,14 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.UI.ViewModels
 
                 var progress = new Progress<string>(message => ProgressText = message).WithDoEvents();
 
-                var result = await orchestrator.ExecuteFullRebase(true, true, progress);
+                var result = await orchestrator.ExecuteFullRebase(
+                    RebaseViewTemplates,
+                    RebaseTitleBlocks,
+                    RebaseSystemElements,
+                    RebaseSchedules,
+                    RebaseSharedParameters,
+                    BuiltInCategory.OST_Floors,
+                    progress);
 
                 if (result.Success)
                 {

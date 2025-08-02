@@ -1,4 +1,4 @@
-using System.Text.Json;
+using Newtonsoft.Json;
 using RebaseProjectWithTemplate.Commands.Rebase.Core.Abstractions;
 using RebaseProjectWithTemplate.Commands.Rebase.Core.Models;
 using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.IO;
@@ -23,9 +23,9 @@ public class CategoryMappingPromptStrategy : IPromptStrategy
         if (!(data is CategoryMappingPromptData promptData))
             throw new ArgumentException("Invalid data type for this prompt strategy", nameof(data));
 
-        var oldFamiliesJson = JsonSerializer.Serialize(promptData.OldFamilies.Select(f =>
+        var oldFamiliesJson = JsonConvert.SerializeObject(promptData.OldFamilies.Select(f =>
             new { f.FamilyName, Types = f.Types.Select(t => t.TypeName).ToList() }));
-        var newFamiliesJson = JsonSerializer.Serialize(promptData.NewFamilies.Select(f =>
+        var newFamiliesJson = JsonConvert.SerializeObject(promptData.NewFamilies.Select(f =>
             new { f.FamilyName, Types = f.Types.Select(t => t.TypeName).ToList() }));
 
         return

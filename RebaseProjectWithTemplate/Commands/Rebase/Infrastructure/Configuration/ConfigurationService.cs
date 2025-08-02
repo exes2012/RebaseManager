@@ -1,6 +1,6 @@
 using System.IO;
 using System.Reflection;
-using System.Text.Json;
+using Newtonsoft.Json;
 
 namespace RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Configuration;
 
@@ -14,25 +14,7 @@ public static class ConfigurationService
         return _settings.AiProvider;
     }
 
-    public static string GetGrokApiKey()
-    {
-        if (_settings == null) LoadSettings();
 
-        if (string.IsNullOrEmpty(_settings?.GrokApiKey) || _settings.GrokApiKey == "YOUR_GROK_API_KEY_HERE")
-            throw new Exception("Grok API key not configured. Please set your API key in appsettings.json file.");
-
-        return _settings.GrokApiKey;
-    }
-
-    public static string GetGrokApiUrl()
-    {
-        if (_settings == null) LoadSettings();
-
-        if (string.IsNullOrEmpty(_settings?.GrokApiUrl))
-            throw new Exception("Grok API URL not configured. Please set your API URL in appsettings.json file.");
-
-        return _settings.GrokApiUrl;
-    }
 
     public static string GetGeminiApiKey()
     {
@@ -57,10 +39,7 @@ public static class ConfigurationService
                     $"Configuration file not found: {settingsPath}. Please copy appsettings.example.json to appsettings.json and set your API key.");
 
             var json = File.ReadAllText(settingsPath);
-            _settings = JsonSerializer.Deserialize<AppSettings>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            _settings = JsonConvert.DeserializeObject<AppSettings>(json);
         }
         catch (Exception ex)
         {
@@ -72,7 +51,5 @@ public static class ConfigurationService
 public class AppSettings
 {
     public string AiProvider { get; set; }
-    public string GrokApiKey { get; set; }
-    public string GrokApiUrl { get; set; }
     public string GeminiApiKey { get; set; }
 }

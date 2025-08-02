@@ -1,13 +1,13 @@
 # Revit Rebase Project With Template
 
-A Revit add-in for rebasing projects with template standardization using AI-powered view template mapping.
+A Revit add-in for rebasing projects with template standardization using AI-powered mapping via Google Gemini.
 
 ## Setup
 
 ### 1. Configure API Key
 
 1. Copy `appsettings.example.json` to `appsettings.json`
-2. Replace `YOUR_GROK_API_KEY_HERE` with your actual Grok API key from x.ai
+2. Replace `YOUR_GEMINI_API_KEY_HERE` with your actual Gemini API key from Google AI Studio
 3. The `appsettings.json` file is automatically excluded from git commits
 
 ### 2. Build and Install
@@ -18,7 +18,7 @@ A Revit add-in for rebasing projects with template standardization using AI-powe
 ## Features
 
 ### Step 1: View Template Rebase
-- AI-powered semantic mapping of view templates using Grok-3-mini
+- AI-powered semantic mapping of view templates using Google Gemini
 - 1-to-1 mapping with no duplicates
 - Automatic deletion of old templates and copying of new ones
 - Filters views by numeric View Size parameter
@@ -46,7 +46,7 @@ A Revit add-in for rebasing projects with template standardization using AI-powe
 - `ProjectRebaseService` - Main orchestrator for all rebase steps
 - `ViewTemplateRebaseService` - Handles view template mapping and replacement
 - `ViewReplacementService` - Handles legend and drafting view replacement
-- `GrokApiService` - AI-powered template mapping via Grok API
+- `GeminiApiService` - AI-powered template mapping via Google Gemini API
 - `ViewCopyService` - Utilities for copying view content and annotations
 - `PromptService` - Centralized prompt management for AI requests
 - `ConfigurationService` - Secure API key management
@@ -61,4 +61,4 @@ A Revit add-in for rebasing projects with template standardization using AI-powe
 
 - Revit 2020-2026 support
 - .NET Framework 4.8 (Revit 2020-2024) or .NET 8.0 (Revit 2025-2026)
-- Valid Grok API key from x.ai
+- Valid Gemini API key from Google AI Studio

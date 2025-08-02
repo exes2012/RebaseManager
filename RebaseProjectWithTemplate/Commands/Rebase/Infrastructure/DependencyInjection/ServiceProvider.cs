@@ -7,10 +7,10 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.DependencyInj
 
 public static class ServiceProvider
 {
-    public static RebaseOrchestrator CreateRebaseOrchestrator(Document doc, Document tpl)
+    public static ProjectRebaseOrchestrator CreateRebaseOrchestrator(Document doc, Document tpl)
     {
         // AI Service
-        var aiService = new GeminiApiService(); // Or GrokApiService
+        var aiService = new GeminiApiService();
 
         // Repositories
         var familyRepo = new FamilyRepository(doc, tpl);
@@ -21,13 +21,19 @@ public static class ServiceProvider
         var categoryRebaseOrchestrator = new CategoryRebaseOrchestrator(familyRepo, aiService);
         var viewTemplateRebaseOrchestrator = new ViewTemplateRebaseOrchestrator(viewTemplateRepo, aiService);
         var viewRebaseOrchestrator = new ViewRebaseOrchestrator(viewRepo);
+        var elementTypeRebaseOrchestrator = new ElementTypeRebaseOrchestrator(doc, tpl, aiService);
+        var schedulesRebaseOrchestrator = new SchedulesRebaseOrchestrator(doc, tpl);
+        var sharedParametersRebaseOrchestrator = new SharedParametersRebaseOrchestrator(doc, tpl);
 
         // Main Orchestrator
-        var rebaseOrchestrator = new RebaseOrchestrator(
+        var rebaseOrchestrator = new ProjectRebaseOrchestrator(
             doc,
             categoryRebaseOrchestrator,
             viewTemplateRebaseOrchestrator,
-            viewRebaseOrchestrator);
+            viewRebaseOrchestrator,
+            elementTypeRebaseOrchestrator,
+            schedulesRebaseOrchestrator,
+            sharedParametersRebaseOrchestrator);
 
         return rebaseOrchestrator;
     }

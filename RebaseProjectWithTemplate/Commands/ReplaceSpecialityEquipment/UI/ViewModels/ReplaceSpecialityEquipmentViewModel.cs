@@ -28,30 +28,13 @@ namespace RebaseProjectWithTemplate.Commands.ReplaceSpecialityEquipment.UI.ViewM
             set => SetProperty(ref _selectedFamilySymbol, value);
         }
 
-        private bool _overwriteParametersLookup;
-        public bool OverwriteParametersLookup
-        {
-            get => _overwriteParametersLookup;
-            set
-            {
-                if (SetProperty(ref _overwriteParametersLookup, value) && value)
-                {
-                    OverwriteParametersSnapshot = false;
-                }
-            }
-        }
 
-        private bool _overwriteParametersSnapshot;
-        public bool OverwriteParametersSnapshot
+
+        private bool _useMassReplace = true;
+        public bool UseMassReplace
         {
-            get => _overwriteParametersSnapshot;
-            set
-            {
-                if (SetProperty(ref _overwriteParametersSnapshot, value) && value)
-                {
-                    OverwriteParametersLookup = false;
-                }
-            }
+            get => _useMassReplace;
+            set => SetProperty(ref _useMassReplace, value);
         }
 
         private string _operationTime;
@@ -113,8 +96,6 @@ namespace RebaseProjectWithTemplate.Commands.ReplaceSpecialityEquipment.UI.ViewM
             {
                 transaction.Start();
 
-                
-
                 instancesToReplace = new FilteredElementCollector(_doc)
                     .OfClass(typeof(FamilyInstance))
                     .OfCategoryId(new ElementId(BuiltInCategory.OST_SpecialityEquipment))
@@ -122,70 +103,74 @@ namespace RebaseProjectWithTemplate.Commands.ReplaceSpecialityEquipment.UI.ViewM
                     .Where(fi => fi.Symbol.Id == SelectedFamilySymbolToReplace.Id)
                     .ToList();
 
-                foreach (var inst in instancesToReplace)
+                if (instancesToReplace.Any())
                 {
-                    ElementId newSymId = SelectedFamilySymbol.Id;
-
-                    if (OverwriteParametersLookup)
+                    if (UseMassReplace)
                     {
-                        // Need a temporary variable for the ref parameter in OverwriteParametersWithLookup
-                        FamilyInstance currentInst = inst;
-                        OverwriteParametersWithLookup(ref currentInst, newSymId);
+                        // Mass replace with parameter preservation
+                        MassReplaceWithParameterPreservation(instancesToReplace, SelectedFamilySymbol.Id);
                     }
-                    else if (OverwriteParametersSnapshot)
+                    else
                     {
-                        // Need a temporary variable for the ref parameter in OverwriteParametersWithSnapshot
-                        FamilyInstance currentInst = inst;
-                        OverwriteParametersWithSnapshot(ref currentInst, newSymId);
-                    }
-                    else // No overwrite selected, just change symbol
-                    {
-                        inst.ChangeTypeId(newSymId);
+                        // Individual replace with parameter preservation (old method)
+                        IndividualReplaceWithParameterPreservation(instancesToReplace, SelectedFamilySymbol.Id);
                     }
                 }
-                
+
                 transaction.Commit();
             }
 
             stopwatch.Stop();
-            OperationTime = $"Operation completed in {stopwatch.Elapsed.TotalSeconds:F2} seconds.";
+            var method = UseMassReplace ? "Mass Replace" : "Individual Replace";
+            OperationTime = $"{method}: {stopwatch.Elapsed.TotalSeconds:F2} seconds.";
 
             TaskDialog.Show("Replacement Summary",
-                $"Replaced {instancesToReplace.Count} elements in {stopwatch.Elapsed.TotalSeconds:F2} seconds.");
+                $"Replaced {instancesToReplace.Count} elements using {method} in {stopwatch.Elapsed.TotalSeconds:F2} seconds.");
         }
 
-        private void OverwriteParametersWithLookup(ref FamilyInstance inst, ElementId newSymId)
+
+
+        private void IndividualReplaceWithParameterPreservation(List<FamilyInstance> instances, ElementId newTypeId)
         {
-            var parameterValues = new Dictionary<string, object>();
-            foreach (Parameter p in inst.ParametersMap)
+            foreach (var inst in instances)
             {
-                if ((p.Id.IntegerValue > 0 || p.IsShared))
-                {
-                    if (p.HasValue && !p.IsReadOnly)
-                    {
-                        parameterValues[p.Definition.Name] = GetParameterValue(p);
-                    }
-                }
-            }
-
-            inst.ChangeTypeId(newSymId);
-
-            foreach (var pair in parameterValues)
-            {
-                var newParam = inst.LookupParameter(pair.Key);
-                if (newParam != null && !newParam.IsReadOnly)
-                {
-                    SetParameterValue(newParam, pair.Value);
-                }
+                // Individual replace using optimized snapshot method
+                FamilyInstance currentInst = inst;
+                OverwriteParametersWithSnapshot(ref currentInst, newTypeId);
             }
         }
 
-        private void OverwriteParametersWithSnapshot(ref FamilyInstance inst, ElementId newSymId)
+        private void MassReplaceWithParameterPreservation(List<FamilyInstance> instances, ElementId newTypeId)
         {
-            // 1. Снимаем значения всех изменяемых параметров
+            if (!instances.Any()) return;
+
+            // 1. Cache parameters by name for all instances (for mass replace)
+            var parameterCache = new Dictionary<ElementId, Dictionary<string, object>>();
+
+            foreach (var inst in instances)
+            {
+                parameterCache[inst.Id] = CacheInstanceParametersByName(inst);
+            }
+
+            // 2. Mass replace types using Revit's batch method
+            var instanceIds = instances.Select(i => i.Id).ToList();
+            var resultMap = Element.ChangeTypeId(_doc, instanceIds, newTypeId);
+
+            // 3. Restore parameters for all instances using LookupParameter
+            foreach (var originalInst in instances)
+            {
+                if (parameterCache.TryGetValue(originalInst.Id, out var cachedParameters))
+                {
+                    RestoreInstanceParametersByName(originalInst, cachedParameters);
+                }
+            }
+        }
+
+        private Dictionary<Definition, object> CacheInstanceParameters(FamilyInstance inst)
+        {
             var snapshot = new Dictionary<Definition, object>();
 
-            foreach (Parameter p in inst.Parameters)               // один линейный проход
+            foreach (Parameter p in inst.ParametersMap)
             {
                 if ((p.Id.IntegerValue > 0 || p.IsShared) && !p.IsReadOnly && p.HasValue)
                 {
@@ -193,20 +178,101 @@ namespace RebaseProjectWithTemplate.Commands.ReplaceSpecialityEquipment.UI.ViewM
                 }
             }
 
-            // 2. Меняем тип экземпляра
-            if (inst.ChangeTypeId(newSymId) == ElementId.InvalidElementId)
-                return;                                            // если не удалось — выходим
+            return snapshot;
+        }
 
-            // 3. Возвращаем сохранённые значения
-            foreach (KeyValuePair<Definition, object> kvp in snapshot)
+        private Dictionary<string, object> CacheInstanceParametersByName(FamilyInstance inst)
+        {
+            var snapshot = new Dictionary<string, object>();
+
+            foreach (Parameter p in inst.ParametersMap)
             {
-                Definition def = kvp.Key;
-                object val = kvp.Value;
+                if ((p.Id.IntegerValue > 0 || p.IsShared) && !p.IsReadOnly && p.HasValue)
+                {
+                    snapshot[p.Definition.Name] = GetParameterValue(p);
+                }
+            }
 
-                Parameter p = inst.get_Parameter(def);             // быстрый доступ по Definition
+            return snapshot;
+        }
+
+        private void RestoreInstanceParametersByName(FamilyInstance inst, Dictionary<string, object> cachedParameters)
+        {
+            foreach (var kvp in cachedParameters)
+            {
+                var paramName = kvp.Key;
+                var val = kvp.Value;
+
+                var p = inst.LookupParameter(paramName); // Lookup by name for mass replace
                 if (p != null && !p.IsReadOnly)
                 {
-                    SetParameterValue(p, val);
+                    try
+                    {
+                        SetParameterValue(p, val);
+                    }
+                    catch
+                    {
+                        // Ignore parameter restore errors
+                    }
+                }
+            }
+        }
+
+        private void RestoreInstanceParameters(FamilyInstance inst, Dictionary<Definition, object> cachedParameters)
+        {
+            foreach (var kvp in cachedParameters)
+            {
+                var def = kvp.Key;
+                var val = kvp.Value;
+
+                var p = inst.get_Parameter(def); // Fast access by Definition
+                if (p != null && !p.IsReadOnly)
+                {
+                    try
+                    {
+                        SetParameterValue(p, val);
+                    }
+                    catch
+                    {
+                        // Ignore parameter restore errors
+                    }
+                }
+            }
+        }
+
+        private void OverwriteParametersWithSnapshot(ref FamilyInstance inst, ElementId newSymId)
+        {
+            // 1. Cache parameters by name for individual replace (more reliable after ChangeTypeId)
+            var snapshot = new Dictionary<string, object>();
+
+            foreach (Parameter p in inst.ParametersMap)
+            {
+                if ((p.Id.IntegerValue > 0 || p.IsShared) && !p.IsReadOnly && p.HasValue)
+                {
+                    snapshot[p.Definition.Name] = GetParameterValue(p);
+                }
+            }
+
+            // 2. Change instance type
+            inst.ChangeTypeId(newSymId);
+
+            // 3. Restore saved values using ParametersMap
+            var map = inst.ParametersMap
+                         .Cast<Parameter>()
+                         .ToDictionary(p => p.Definition.Name);
+
+            foreach (var kv in snapshot)
+            {
+                if (map.TryGetValue(kv.Key, out var p) && !p.IsReadOnly)
+                {
+                    try
+                    {
+                        SetParameterValue(p, kv.Value);
+                    }
+                    catch
+                    {
+                        // Ignore parameter restore errors
+                    }
                 }
             }
         }
