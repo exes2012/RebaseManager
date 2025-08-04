@@ -119,21 +119,45 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
             }
         }
 
+        // Updated FilterTopLevelFamilies method to handle tags properly
         private List<FamilyData> FilterTopLevelFamilies(List<FamilyData> families, BuiltInCategory category)
         {
             var doc = _familyRepo.GetDocument();
             var topLevel = new List<FamilyData>();
 
+            // Check if this is a tag category
+            bool isTagCategory = IsTagCategory(category);
+
             foreach (var family in families)
             {
                 try
                 {
-                    // Проверяем наличие размещённых экземпляров
-                    var hasInstances = new FilteredElementCollector(doc)
-                        .OfCategory(category)
-                        .WhereElementIsNotElementType()
-                        .Cast<FamilyInstance>()
-                        .Any(inst => inst.Symbol.Family.Name == family.FamilyName && inst.SuperComponent == null);
+                    bool hasInstances = false;
+
+                    if (isTagCategory)
+                    {
+                        // For tag categories, check for IndependentTag elements
+                        hasInstances = new FilteredElementCollector(doc)
+                            .OfCategory(category)
+                            .WhereElementIsNotElementType()
+                            .OfClass(typeof(IndependentTag))
+                            .Cast<IndependentTag>()
+                            .Any(tag =>
+                            {
+                                // Get the tag's type to find its family name
+                                var tagType = doc.GetElement(tag.GetTypeId()) as ElementType;
+                                return tagType != null && tagType.FamilyName == family.FamilyName;
+                            });
+                    }
+                    else
+                    {
+                        // Original logic for non-tag categories
+                        hasInstances = new FilteredElementCollector(doc)
+                            .OfCategory(category)
+                            .WhereElementIsNotElementType()
+                            .Cast<FamilyInstance>()
+                            .Any(inst => inst.Symbol.Family.Name == family.FamilyName && inst.SuperComponent == null);
+                    }
 
                     if (hasInstances)
                     {
@@ -143,12 +167,101 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
                 catch (Exception ex)
                 {
                     LogHelper.Warning($"Error checking family '{family.FamilyName}': {ex.Message}");
-                    // В случае ошибки включаем семейство в обработку
+                    // In case of error, include the family in processing
                     topLevel.Add(family);
                 }
             }
 
             return topLevel;
+        }
+
+        // Helper method to determine if a category is for tags
+        private bool IsTagCategory(BuiltInCategory category)
+        {
+            // List of known tag categories
+            var tagCategories = new HashSet<BuiltInCategory>
+            {
+                BuiltInCategory.OST_DoorTags,
+                BuiltInCategory.OST_WindowTags,
+                BuiltInCategory.OST_WallTags,
+                BuiltInCategory.OST_RoomTags,
+                BuiltInCategory.OST_AreaTags,
+                BuiltInCategory.OST_FloorTags,
+                BuiltInCategory.OST_CeilingTags,
+                BuiltInCategory.OST_RoofTags,
+                BuiltInCategory.OST_StairsTags,
+                BuiltInCategory.OST_StructuralFramingTags,
+                BuiltInCategory.OST_StructuralColumnTags,
+                BuiltInCategory.OST_StructuralFoundationTags,
+                BuiltInCategory.OST_PlumbingFixtureTags,
+                BuiltInCategory.OST_MechanicalEquipmentTags,
+                BuiltInCategory.OST_ElectricalEquipmentTags,
+                BuiltInCategory.OST_ElectricalFixtureTags,
+                BuiltInCategory.OST_LightingFixtureTags,
+                BuiltInCategory.OST_FurnitureTags,
+                BuiltInCategory.OST_CaseworkTags,
+                BuiltInCategory.OST_ParkingTags,
+                BuiltInCategory.OST_GenericModelTags,
+                BuiltInCategory.OST_SpecialityEquipmentTags,
+                BuiltInCategory.OST_TelephoneDeviceTags,
+                BuiltInCategory.OST_SecurityDeviceTags,
+                BuiltInCategory.OST_FireAlarmDeviceTags,
+                BuiltInCategory.OST_NurseCallDeviceTags,
+                BuiltInCategory.OST_CommunicationDeviceTags,
+                BuiltInCategory.OST_DataDeviceTags,
+                BuiltInCategory.OST_LightingDeviceTags,
+                BuiltInCategory.OST_DuctTags,
+                BuiltInCategory.OST_PipeTags,
+                BuiltInCategory.OST_CableTrayTags,
+                BuiltInCategory.OST_ConduitTags,
+                BuiltInCategory.OST_FlexDuctTags,
+                BuiltInCategory.OST_FlexPipeTags,
+                BuiltInCategory.OST_DuctFittingTags,
+                BuiltInCategory.OST_PipeFittingTags,
+                BuiltInCategory.OST_DuctAccessoryTags,
+                BuiltInCategory.OST_PipeAccessoryTags,
+                BuiltInCategory.OST_FabricationDuctworkTags,
+                BuiltInCategory.OST_FabricationPipeworkTags,
+                BuiltInCategory.OST_FabricationContainmentTags,
+                BuiltInCategory.OST_MaterialTags,
+                BuiltInCategory.OST_MultiCategoryTags,
+                BuiltInCategory.OST_DetailComponentTags,
+                BuiltInCategory.OST_ZoneTags,
+                BuiltInCategory.OST_AssemblyTags,
+                BuiltInCategory.OST_PartTags,
+                BuiltInCategory.OST_RevisionCloudTags,
+                BuiltInCategory.OST_BeamSystemTags,
+                BuiltInCategory.OST_TrussTags,
+                BuiltInCategory.OST_PathReinTags,
+                BuiltInCategory.OST_FabricAreaTags,
+                BuiltInCategory.OST_FabricReinforcementTags,
+                BuiltInCategory.OST_RebarTags,
+                BuiltInCategory.OST_StructConnectionTags,
+                BuiltInCategory.OST_KeynoteTags,
+                BuiltInCategory.OST_SitePropertyLineSegmentTags,
+                BuiltInCategory.OST_InternalAreaLoadTags,
+                BuiltInCategory.OST_InternalLineLoadTags,
+                BuiltInCategory.OST_InternalPointLoadTags,
+                BuiltInCategory.OST_AreaLoadTags,
+                BuiltInCategory.OST_LineLoadTags,
+                BuiltInCategory.OST_PointLoadTags,
+                BuiltInCategory.OST_HostFinTags,
+                BuiltInCategory.OST_CurtainWallPanelTags,
+                BuiltInCategory.OST_RampTags,
+                BuiltInCategory.OST_PlantingTags,
+                BuiltInCategory.OST_FurnitureSystemTags,
+                BuiltInCategory.OST_MassAreaFaceTags,
+                BuiltInCategory.OST_MassTags,
+                BuiltInCategory.OST_WireTags,
+                BuiltInCategory.OST_CurtainWallMullionTags,
+                BuiltInCategory.OST_MEPSpaceTags,
+                BuiltInCategory.OST_StructuralConnectionHandlerTags_Deprecated,
+                BuiltInCategory.OST_StairsRailingTags
+
+                // Add any custom tag categories your project might use
+            };
+
+            return tagCategories.Contains(category);
         }
 
         #endregion
@@ -335,9 +448,11 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
 
         #region ЭТАП 4: Переключение экземпляров
 
+        // Updated SwitchAllInstances method to handle tags
         private async Task SwitchAllInstances(BuiltInCategory category, MappingData mappingData, IProgress<string> progress, MappingExecutionResult result, bool ungroupInstances = true)
         {
             var doc = _familyRepo.GetDocument();
+            bool isTagCategory = IsTagCategory(category);
 
             // Собираем все записи для переключения
             var entriesToSwitch = mappingData.MappingEntries
@@ -348,6 +463,13 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
             if (!entriesToSwitch.Any())
             {
                 LogHelper.Information("No families to switch");
+                return;
+            }
+
+            if (isTagCategory)
+            {
+                // Handle tag switching differently
+                await SwitchTagInstances(category, mappingData, progress, result);
                 return;
             }
 
@@ -579,6 +701,113 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
             }
         }
 
+        // New method specifically for switching tag instances
+        private async Task SwitchTagInstances(BuiltInCategory category, MappingData mappingData, IProgress<string> progress, MappingExecutionResult result)
+        {
+            var doc = _familyRepo.GetDocument();
+
+            var aiMappedEntries = mappingData.MappingEntries
+                .Where(e => e.Source == MappingSource.AI && e.LoadedFamily != null)
+                .ToList();
+
+            if (!aiMappedEntries.Any()) return;
+
+            try
+            {
+                // Collect all tags
+                var allTags = new FilteredElementCollector(doc)
+                    .OfCategory(category)
+                    .WhereElementIsNotElementType()
+                    .OfClass(typeof(IndependentTag))
+                    .Cast<IndependentTag>()
+                    .ToList();
+
+                LogHelper.Information($"Found {allTags.Count} tags to process");
+
+                // Build type mapping for tags
+                var typeIdMap = new Dictionary<ElementId, ElementId>();
+
+                foreach (var entry in aiMappedEntries)
+                {
+                    // Map old tag types to new tag types
+                    var oldTypes = GetTagTypes(doc, category, entry.SourceFamilyName);
+                    var newTypes = GetTagTypes(doc, category, entry.TargetFamilyName);
+
+                    // Simple name matching for now
+                    foreach (var oldType in oldTypes)
+                    {
+                        var matchingNewType = newTypes.FirstOrDefault(nt => nt.Name == oldType.Name);
+                        if (matchingNewType != null)
+                        {
+                            typeIdMap[oldType.Id] = matchingNewType.Id;
+                        }
+                    }
+                }
+
+                if (!typeIdMap.Any())
+                {
+                    LogHelper.Warning("No tag type mappings available");
+                    return;
+                }
+
+                // Switch tags by type groups
+                var tagsByType = allTags.GroupBy(tag => tag.GetTypeId());
+                var totalGroups = tagsByType.Count();
+                var current = 0;
+
+                foreach (var typeGroup in tagsByType)
+                {
+                    current++;
+                    var oldTypeId = typeGroup.Key;
+
+                    if (!typeIdMap.ContainsKey(oldTypeId)) continue;
+
+                    var newTypeId = typeIdMap[oldTypeId];
+                    var tags = typeGroup.ToList();
+
+                    progress?.Report($"Switching tag type {current}/{totalGroups}");
+
+                    using (var tx = new Transaction(doc, "Switch tag types"))
+                    {
+                        CommonFailuresPreprocessor.SetFailuresPreprocessor(tx);
+                        tx.Start();
+
+                        try
+                        {
+                            // Use ChangeTypeId for tags
+                            var tagIds = tags.Select(t => t.Id).ToList();
+                            Element.ChangeTypeId(doc, tagIds, newTypeId);
+
+                            tx.Commit();
+                            result.SwitchedInstances += tags.Count;
+                            LogHelper.Information($"Switched {tags.Count} tags");
+                        }
+                        catch (Exception ex)
+                        {
+                            tx.RollBack();
+                            LogHelper.Error($"Failed to switch tags: {ex.Message}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.Error($"Error during tag switching: {ex.Message}");
+                result.Errors.Add($"Tag switching error: {ex.Message}");
+            }
+        }
+
+        // Helper method to get tag types for a family name
+        private List<ElementType> GetTagTypes(Document doc, BuiltInCategory category, string familyName)
+        {
+            return new FilteredElementCollector(doc)
+                .OfCategory(category)
+                .WhereElementIsElementType()
+                .Cast<ElementType>()
+                .Where(et => et.FamilyName == familyName)
+                .ToList();
+        }
+
         #endregion
 
         #region ЭТАП 5: Финальная обработка
@@ -586,6 +815,7 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
         private async Task FinalProcessing(BuiltInCategory category, MappingData mappingData, IProgress<string> progress, MappingExecutionResult result)
         {
             var doc = _familyRepo.GetDocument();
+            bool isTagCategory = IsTagCategory(category);
 
             // ВАЖНО: Понимаем, что произошло с семействами:
             // 1. Exact match - Revit автоматически заменил старые на новые, старые стали невалидными
@@ -628,11 +858,31 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
                 {
                     try
                     {
-                        var hasInstances = new FilteredElementCollector(doc)
-                            .OfCategory(category)
-                            .WhereElementIsNotElementType()
-                            .Cast<FamilyInstance>()
-                            .Any(inst => inst.Symbol?.Family?.Name == entry.SourceFamilyName);
+                        bool hasInstances = false;
+
+                        if (isTagCategory)
+                        {
+                            // Check for tag instances
+                            hasInstances = new FilteredElementCollector(doc)
+                                .OfCategory(category)
+                                .WhereElementIsNotElementType()
+                                .OfClass(typeof(IndependentTag))
+                                .Cast<IndependentTag>()
+                                .Any(tag =>
+                                {
+                                    var tagType = doc.GetElement(tag.GetTypeId()) as ElementType;
+                                    return tagType != null && tagType.FamilyName == entry.SourceFamilyName;
+                                });
+                        }
+                        else
+                        {
+                            // Original FamilyInstance check
+                            hasInstances = new FilteredElementCollector(doc)
+                                .OfCategory(category)
+                                .WhereElementIsNotElementType()
+                                .Cast<FamilyInstance>()
+                                .Any(inst => inst.Symbol?.Family?.Name == entry.SourceFamilyName);
+                        }
 
                         if (hasInstances)
                         {

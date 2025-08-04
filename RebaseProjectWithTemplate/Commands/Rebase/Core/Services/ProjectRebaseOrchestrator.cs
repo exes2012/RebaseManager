@@ -81,12 +81,11 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
                 await _categoryRebaseOrchestrator.RebaseAsync(_document, BuiltInCategory.OST_ElectricalEquipment, new CategoryMappingPromptStrategy(), progress, ungroupInstances: false);
                 await _categoryRebaseOrchestrator.RebaseAsync(_document, BuiltInCategory.OST_ElectricalEquipmentTags, new CategoryMappingPromptStrategy(), progress, ungroupInstances: true);
                 await _categoryRebaseOrchestrator.RebaseAsync(_document, BuiltInCategory.OST_GenericAnnotation, new CategoryMappingPromptStrategy(), progress, ungroupInstances: true);
-                await _categoryRebaseOrchestrator.RebaseAsync(_document, BuiltInCategory.OST_GenericModel, new CategoryMappingPromptStrategy(), progress, ungroupInstances: true);
-                await _categoryRebaseOrchestrator.RebaseAsync(_document, BuiltInCategory.OST_DetailComponents, new CategoryMappingPromptStrategy(), progress, ungroupInstances: true);
                 await _categoryRebaseOrchestrator.RebaseAsync(_document, BuiltInCategory.OST_DetailComponentTags, new CategoryMappingPromptStrategy(), progress, ungroupInstances: true);
 
                 await _elementTypeRebaseOrchestrator.RebaseAsync(systemElementCategory, new CategoryMappingPromptStrategy(), progress);
-                 await _elementTypeRebaseOrchestrator.RebaseAsync(BuiltInCategory.OST_FlexPipeCurves, new CategoryMappingPromptStrategy(), progress);
+                //await _elementTypeRebaseOrchestrator.RebaseAsync(BuiltInCategory.OST_DetailComponents, new CategoryMappingPromptStrategy(), progress);
+                await _elementTypeRebaseOrchestrator.RebaseAsync(BuiltInCategory.OST_FlexPipeCurves, new CategoryMappingPromptStrategy(), progress);
                  await _elementTypeRebaseOrchestrator.RebaseAsync(BuiltInCategory.OST_FlexPipeCurves, new CategoryMappingPromptStrategy(), progress);
                  await _elementTypeRebaseOrchestrator.RebaseAsync(BuiltInCategory.OST_StairsRailing, new CategoryMappingPromptStrategy(), progress);
 
