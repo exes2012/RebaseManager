@@ -21,7 +21,7 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
         private readonly Document _templateDoc;
         private readonly IAiService _aiService;
 
-        private const string OLD_SUFFIX = "_rebase_old";
+        private const string OLD_SUFFIX = "_REBASE_OLD";
 
         public ElementTypeRebaseOrchestrator(Document sourceDoc, Document templateDoc, IAiService aiService)
         {
@@ -513,7 +513,7 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
                         _templateDoc,
                         elementIds,
                         _sourceDoc,
-                        Transform.Identity,
+                        null,  // Используем null для безопасности
                         copyOptions);
 
                     for (int i = 0; i < toCopy.Count && i < copiedIds.Count; i++)

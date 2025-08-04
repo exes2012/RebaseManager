@@ -13,4 +13,7 @@ public interface IViewTemplateRepository
 
     void ApplyMappedViewTemplates(Dictionary<ElementId, string> originalTemplateNames,
         List<ViewTemplateMapping> mappings);
+
+    void RenameFiltersWithPrefix(string filterPrefix);
+    void SetUnmatchedViewSize(List<ViewPlan> views, List<UnmappedViewTemplate> unmapped, string unmatchedValue);
 }

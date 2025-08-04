@@ -910,7 +910,35 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Revit
                             {
                                 try
                                 {
-                                    if (param.Definition.ParameterType == ParameterType.FamilyType)
+                                    bool isFamilyTypeParameter = false;
+
+#if revit2020 || revit2021 || revit2022
+                                    // Для старых версий Revit используем ParameterType
+                                    isFamilyTypeParameter = param.Definition.ParameterType == ParameterType.FamilyType;
+#else
+                                    // Для Revit 2023+ используем GetDataType()
+                                    try
+                                    {
+                                        var dataType = param.Definition.GetDataType();
+                                        // Проверяем, является ли это типом семейства
+                                        isFamilyTypeParameter = dataType.TypeId == "autodesk.spec.aec:familyType-2.0.0";
+                                    }
+                                    catch
+                                    {
+                                        // Fallback: проверяем по StorageType и пытаемся получить FamilySymbol
+                                        if (param.StorageType == StorageType.ElementId)
+                                        {
+                                            var testId = param.AsElementId();
+                                            if (testId != null && testId != ElementId.InvalidElementId)
+                                            {
+                                                var testElement = _doc.GetElement(testId);
+                                                isFamilyTypeParameter = testElement is FamilySymbol;
+                                            }
+                                        }
+                                    }
+#endif
+
+                                    if (isFamilyTypeParameter)
                                     {
                                         var nestedId = param.AsElementId();
                                         if (nestedId == null || nestedId == ElementId.InvalidElementId) continue;

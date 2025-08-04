@@ -1,0 +1,54 @@
+<Window x:Class="RebaseProjectWithTemplate.Commands.Rebase.UI.Views.ProgressView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        mc:Ignorable="d"
+        Title="Rebase Progress"
+        Width="500" Height="200"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" 
+                   Text="Rebase in Progress..." 
+                   FontSize="16" 
+                   FontWeight="Bold" 
+                   HorizontalAlignment="Center" 
+                   Margin="0,0,0,15"/>
+
+        <TextBlock Grid.Row="1" 
+                   Text="{Binding StepStatus}" 
+                   FontSize="12" 
+                   HorizontalAlignment="Center" 
+                   Margin="0,0,0,10"/>
+
+        <ProgressBar Grid.Row="2" 
+                     Value="{Binding ProgressValue}" 
+                     Height="20" 
+                     Margin="0,0,0,10"/>
+
+        <TextBlock Grid.Row="3" 
+                   Text="{Binding TaskStatus}" 
+                   FontSize="10" 
+                   HorizontalAlignment="Center" 
+                   Margin="0,0,0,10"/>
+
+        <Button Grid.Row="5" 
+                Content="Cancel" 
+                Command="{Binding CancelCommand}"
+                CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}"
+                IsEnabled="{Binding IsCancelEnabled}"
+                Width="100" 
+                Height="30" 
+                HorizontalAlignment="Center"/>
+    </Grid>
+</Window>

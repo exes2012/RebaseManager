@@ -5,10 +5,14 @@ using Microsoft.Win32;
 using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.UI;
 using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.DependencyInjection;
 using RebaseProjectWithTemplate.UI.ViewModels.Base;
+using RebaseProjectWithTemplate.Commands.Rebase.UI.Views;
+using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Ai.Prompting;
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Windows.Threading;
 
 namespace RebaseProjectWithTemplate.Commands.Rebase.UI.ViewModels
 {
@@ -125,6 +129,12 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.UI.ViewModels
             IsRebaseInProgress = true;
             ProgressText = "Starting rebase...";
 
+            var cancellationTokenSource = new CancellationTokenSource();
+            var progressViewModel = new ProgressViewModel(cancellationTokenSource);
+
+            // Show progress window in separate thread
+            ShowProgressWindowOnNewThread(progressViewModel);
+
             try
             {
                 var sourceDocument = _uiApp.ActiveUIDocument.Document;
@@ -139,10 +149,10 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.UI.ViewModels
                 var rebasedDocument = _uiApp.Application.OpenDocumentFile(rebasedPath);
                 var templateDocument = _uiApp.Application.OpenDocumentFile(TemplateFilePath);
 
-
                 var orchestrator = ServiceProvider.CreateRebaseOrchestrator(rebasedDocument, templateDocument);
 
-                var progress = new Progress<string>(message => ProgressText = message).WithDoEvents();
+                // Use progress reporter that updates the separate progress window
+                var progress = progressViewModel.WithDoEvents();
 
                 var result = await orchestrator.ExecuteFullRebase(
                     RebaseViewTemplates,
@@ -151,7 +161,8 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.UI.ViewModels
                     RebaseSchedules,
                     RebaseSharedParameters,
                     BuiltInCategory.OST_Floors,
-                    progress);
+                    progress,
+                    cancellationTokenSource.Token);
 
                 if (result.Success)
                 {
@@ -164,6 +175,10 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.UI.ViewModels
                 rebasedDocument.Close(true);
                 templateDocument.Close(false);
             }
+            catch (OperationCanceledException)
+            {
+                TaskDialog.Show("Cancelled", "Rebase operation was cancelled by user.");
+            }
             catch (Exception ex)
             {
                 TaskDialog.Show("Error", $"An unexpected error occurred: {ex.Message}");
@@ -171,7 +186,32 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.UI.ViewModels
             finally
             {
                 IsRebaseInProgress = false;
+                // Close progress window
+                CloseProgressWindow();
             }
+        }
+
+        private ProgressView _progressView;
+
+        private void ShowProgressWindowOnNewThread(ProgressViewModel progressViewModel)
+        {
+            var progressWindowThread = new Thread(() =>
+            {
+                _progressView = new ProgressView();
+                _progressView.DataContext = progressViewModel;
+                _progressView.Show();
+
+                Dispatcher.Run();
+            });
+
+            progressWindowThread.SetApartmentState(ApartmentState.STA);
+            progressWindowThread.IsBackground = true;
+            progressWindowThread.Start();
+        }
+
+        private void CloseProgressWindow()
+        {
+            _progressView?.Dispatcher.Invoke(() => { _progressView.Close(); });
         }
     }
 }

@@ -19,7 +19,7 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
         private readonly IFamilyRepository _familyRepo;
         private readonly IAiService _aiService;
 
-        private const string OLD_SUFFIX = "_rebase_old";
+        private const string OLD_SUFFIX = "_REBASE_OLD";
 
         public CategoryRebaseOrchestrator(IFamilyRepository familyRepo, IAiService aiService)
         {
@@ -27,15 +27,20 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
             _aiService = aiService;
         }
 
+
+
         public async Task<MappingExecutionResult> RebaseAsync(
             Document document,
             BuiltInCategory category,
             IPromptStrategy strategy,
-            IProgress<string> progress)
+            IProgress<string> progress,
+            bool ungroupInstances = true)
         {
             var stopwatch = Stopwatch.StartNew();
             var result = new MappingExecutionResult();
             var mappingData = new MappingData();
+
+            LogHelper.Information($"[{category}] Registered global failure handler for rebase operation");
 
             try
             {
@@ -61,7 +66,7 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
 
                 // ЭТАП 4: Переключение экземпляров
                 progress?.Report($"[{category}] Switching instances...");
-                await SwitchAllInstances(category, mappingData, progress, result);
+                await SwitchAllInstances(category, mappingData, progress, result, ungroupInstances);
 
                 // ЭТАП 5: Финальная обработка (переименование и удаление)
                 progress?.Report($"[{category}] Final processing...");
@@ -330,7 +335,7 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
 
         #region ЭТАП 4: Переключение экземпляров
 
-        private async Task SwitchAllInstances(BuiltInCategory category, MappingData mappingData, IProgress<string> progress, MappingExecutionResult result)
+        private async Task SwitchAllInstances(BuiltInCategory category, MappingData mappingData, IProgress<string> progress, MappingExecutionResult result, bool ungroupInstances = true)
         {
             var doc = _familyRepo.GetDocument();
 
@@ -390,8 +395,17 @@ namespace RebaseProjectWithTemplate.Commands.Rebase.Core.Services
 
                 if (!allInstances.Any()) return;
 
-                // Разгруппировываем
-                var groupsUngrouped = UngroupInstances(allInstances);
+                // Разгруппировываем (если требуется)
+                var groupsUngrouped = 0;
+                if (ungroupInstances)
+                {
+                    groupsUngrouped = UngroupInstances(allInstances);
+                    LogHelper.Information($"Ungrouped {groupsUngrouped} groups for category {category}");
+                }
+                else
+                {
+                    LogHelper.Information($"Skipping ungrouping for category {category} as requested");
+                }
 
                 // Переключаем по группам типов
                 var instancesByType = allInstances.GroupBy(inst => inst.Symbol.Id);

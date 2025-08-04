@@ -3,6 +3,7 @@ using System.Text;
 using Newtonsoft.Json;
 using RebaseProjectWithTemplate.Commands.Rebase.Core.Abstractions;
 using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Configuration;
+using RebaseProjectWithTemplate.Commands.Rebase.DTOs;
 
 namespace RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Ai;
 
@@ -39,32 +40,7 @@ public class GeminiApiService : IAiService
             {
                 temperature = 0.1,
                 response_mime_type = "application/json",
-                response_schema = new
-                {
-                    type = "ARRAY",
-                    items = new
-                    {
-                        type = "OBJECT",
-                        properties = new
-                        {
-                            Old = new { type = "STRING" },
-                            New = new { type = "STRING" },
-                            TypeMatches = new
-                            {
-                                type = "ARRAY",
-                                items = new
-                                {
-                                    type = "OBJECT",
-                                    properties = new
-                                    {
-                                        OldType = new { type = "STRING" },
-                                        NewType = new { type = "STRING" }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
+                response_schema = GetResponseSchema<TResponse>(),
                 thinkingConfig = new
                 {
                     thinkingBudget = 0
@@ -100,6 +76,77 @@ public class GeminiApiService : IAiService
         {
             throw new Exception($"Failed to execute Gemini API request: {ex.Message}", ex);
         }
+    }
+
+    private object GetResponseSchema<TResponse>()
+    {
+        var responseType = typeof(TResponse);
+
+        // Schema for ViewTemplateMappingResponse
+        if (responseType.Name == "ViewTemplateMappingResponse")
+        {
+            return new
+            {
+                type = "OBJECT",
+                properties = new
+                {
+                    mappings = new
+                    {
+                        type = "ARRAY",
+                        items = new
+                        {
+                            type = "OBJECT",
+                            properties = new
+                            {
+                                sourceTemplate = new { type = "STRING" },
+                                targetTemplate = new { type = "STRING" }
+                            }
+                        }
+                    },
+                    unmapped = new
+                    {
+                        type = "ARRAY",
+                        items = new
+                        {
+                            type = "OBJECT",
+                            properties = new
+                            {
+                                sourceTemplate = new { type = "STRING" },
+                                reason = new { type = "STRING" }
+                            }
+                        }
+                    }
+                }
+            };
+        }
+
+        // Default schema for List<MappingResult> and other types
+        return new
+        {
+            type = "ARRAY",
+            items = new
+            {
+                type = "OBJECT",
+                properties = new
+                {
+                    Old = new { type = "STRING" },
+                    New = new { type = "STRING" },
+                    TypeMatches = new
+                    {
+                        type = "ARRAY",
+                        items = new
+                        {
+                            type = "OBJECT",
+                            properties = new
+                            {
+                                OldType = new { type = "STRING" },
+                                NewType = new { type = "STRING" }
+                            }
+                        }
+                    }
+                }
+            }
+        };
     }
 }
 

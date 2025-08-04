@@ -1,4 +1,5 @@
 using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 using RebaseProjectWithTemplate.Commands.Rebase.Core.Services;
 using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Ai;
 using RebaseProjectWithTemplate.Commands.Rebase.Infrastructure.Revit;
@@ -19,7 +20,7 @@ public static class ServiceProvider
 
         // Orchestrators
         var categoryRebaseOrchestrator = new CategoryRebaseOrchestrator(familyRepo, aiService);
-        var viewTemplateRebaseOrchestrator = new ViewTemplateRebaseOrchestrator(viewTemplateRepo, aiService);
+        var viewTemplateRebaseOrchestrator = new ViewTemplateRebaseOrchestrator(doc, tpl, aiService);
         var viewRebaseOrchestrator = new ViewRebaseOrchestrator(viewRepo);
         var elementTypeRebaseOrchestrator = new ElementTypeRebaseOrchestrator(doc, tpl, aiService);
         var schedulesRebaseOrchestrator = new SchedulesRebaseOrchestrator(doc, tpl);
